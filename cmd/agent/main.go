@@ -3,17 +3,16 @@ package main
 import (
 	"context"
 	agent2 "github.com/arxon31/metrics-collector/internal/agent"
-	"time"
+	"github.com/arxon31/metrics-collector/internal/config"
+	"log"
 )
 
 func main() {
-	params := agent2.Params{
-		Address:        "localhost",
-		Port:           "8080",
-		PollInterval:   2 * time.Second,
-		ReportInterval: 10 * time.Second,
-	}
+	Cfg := config.New()
+
+	params := agent2.Params(Cfg.Agent)
 	agent := agent2.New(context.Background(), &params)
+	log.Printf("agent is posting to %s:%s with poll interval %s and report interval %s", params.Address, params.Port, params.PollInterval, params.ReportInterval)
 	agent.Run()
 
 }

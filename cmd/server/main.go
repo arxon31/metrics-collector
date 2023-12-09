@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/arxon31/metrics-collector/internal/config"
 	"github.com/arxon31/metrics-collector/internal/httpserver"
 	"log"
 )
@@ -8,12 +9,11 @@ import (
 func main() {
 	log.Println("starting server...")
 
-	params := &httpserver.Params{
-		Address: "localhost",
-		Port:    "8080",
-	}
+	cfg := config.New()
 
-	server := httpserver.New(params)
+	params := httpserver.Params(cfg.Server)
+
+	server := httpserver.New(&params)
 	log.Printf("server is listening on %s:%s", params.Address, params.Port)
 
 	server.Run()
