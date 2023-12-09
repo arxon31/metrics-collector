@@ -39,6 +39,7 @@ func TestMiddleware(t *testing.T) {
 			middleware := reqParamsCheck(handler)
 			middleware.ServeHTTP(w, req)
 			res := w.Result()
+			defer res.Body.Close()
 
 			assert.Equal(t, tt.wantStatusCode, res.StatusCode)
 		})

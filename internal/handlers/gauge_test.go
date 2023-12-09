@@ -60,6 +60,7 @@ func TestGaugeHandler(t *testing.T) {
 			gauge.ServeHTTP(w, req)
 
 			res := w.Result()
+			defer res.Body.Close()
 
 			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))

@@ -118,6 +118,7 @@ func (a *Agent) reportGaugeMetric(name metric.Name, value metric.Gauge) error {
 		return e.Wrap(op, "failed to report metric", err)
 
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return e.Wrap(op, "failed to report metric", err)
 	}
@@ -135,6 +136,7 @@ func (a *Agent) reportCounterMetric(name metric.Name, value metric.Counter) erro
 	if err != nil {
 		return e.Wrap(op, "failed to report metric", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return e.Wrap(op, "failed to report metric", err)
 	}
