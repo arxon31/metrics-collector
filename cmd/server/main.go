@@ -1,19 +1,20 @@
 package main
 
 import (
-	"github.com/arxon31/metrics-collector/internal/metric"
-	"github.com/arxon31/metrics-collector/internal/service"
+	"github.com/arxon31/metrics-collector/internal/httpserver"
 	"log"
-	"net/http"
 )
 
 func main() {
-	log.Println("Starting server...")
-	mux := http.NewServeMux()
-	storage := metric.NewMetricStorage()
-	service := service.NewService(storage)
-	handler := metric.NewHandler(service)
-	handler.Register(mux)
-	log.Println("Listening...")
-	http.ListenAndServe("localhost:8080", mux)
+	log.Println("starting server...")
+
+	params := &httpserver.Params{
+		Address: "localhost",
+		Port:    "8080",
+	}
+
+	server := httpserver.New(params)
+	log.Printf("server is listening on %s:%s", params.Address, params.Port)
+
+	server.Run()
 }
