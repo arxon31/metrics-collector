@@ -41,9 +41,9 @@ func New(p *Params) *Server {
 	getMetricHandler := &handlers.GetMetricHandler{Storage: st}
 	getMetricsHandler := &handlers.GetMetricsHandler{Storage: st}
 
-	mux.Handle(PostMetricPath, Chain(postMetricsHandler, postCheck))
-	mux.Handle(GetMetricPath, Chain(getMetricHandler, getCheck))
-	mux.Handle(GetMetricsPath, Chain(getMetricsHandler, getCheck))
+	mux.Post(PostMetricPath, postMetricsHandler.ServeHTTP)
+	mux.Get(GetMetricPath, getMetricHandler.ServeHTTP)
+	mux.Get(GetMetricsPath, getMetricsHandler.ServeHTTP)
 	//mux.Handle("/update", http.HandlerFunc(notImplementedHandler))
 
 	return &Server{
