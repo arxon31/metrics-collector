@@ -14,15 +14,14 @@ import (
 )
 
 const (
-	GaugePath      = "/update/gauge/{name}/{value}"
-	CounterPath    = "/update/counter/{name}/{value}"
+	PostMetricPath = "/update/{type}/{name}/{value}"
 	GetMetricPath  = "/value/{type}/{name}"
 	GetMetricsPath = "/"
 )
 
-func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
-}
+//func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
+//	http.Error(w, "Not implemented", http.StatusNotImplemented)
+//}
 
 type Server struct {
 	server *http.Server
@@ -38,16 +37,14 @@ func New(p *Params) *Server {
 	st := mem.NewMapStorage()
 
 	mux := chi.NewRouter()
-	gaugeHandler := &handlers.GaugeHandler{Storage: st}
-	counterHandler := &handlers.CounterHandler{Storage: st}
+	postMetricsHandler := &handlers.PostMetrics{Storage: st}
 	getMetricHandler := &handlers.GetMetricHandler{Storage: st}
 	getMetricsHandler := &handlers.GetMetricsHandler{Storage: st}
 
-	mux.Handle(GaugePath, Chain(gaugeHandler, postCheck))
-	mux.Handle(CounterPath, Chain(counterHandler, postCheck))
+	mux.Handle(PostMetricPath, Chain(postMetricsHandler, postCheck))
 	mux.Handle(GetMetricPath, Chain(getMetricHandler, getCheck))
 	mux.Handle(GetMetricsPath, Chain(getMetricsHandler, getCheck))
-	mux.Handle("/update/", http.HandlerFunc(notImplementedHandler))
+	//mux.Handle("/update", http.HandlerFunc(notImplementedHandler))
 
 	return &Server{
 		server: &http.Server{

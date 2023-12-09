@@ -35,7 +35,7 @@ func TestMiddleware(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.endpoint, nil)
 			w := httptest.NewRecorder()
 			storage := mem.NewMapStorage()
-			handler := &handlers.GaugeHandler{Storage: storage}
+			handler := &handlers.PostMetrics{Storage: storage}
 			mw := postCheck(handler)
 			mw.ServeHTTP(w, req)
 			res := w.Result()

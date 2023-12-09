@@ -55,7 +55,7 @@ func TestGaugeHandler(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, tt.endpoint, nil)
 			w := httptest.NewRecorder()
 
-			var gauge GaugeHandler
+			var gauge PostMetrics
 			gauge.Storage = mem.NewMapStorage()
 			gauge.ServeHTTP(w, req)
 
