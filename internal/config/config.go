@@ -9,8 +9,8 @@ import (
 
 var (
 	address        = flag.String("a", "localhost:8080", "server address")
-	pollInterval   = flag.Duration("p", 2*time.Second, "agent poll interval")
-	reportInterval = flag.Duration("r", 10*time.Second, "agent report interval")
+	pollInterval   = flag.Int("p", 2, "agent poll interval")
+	reportInterval = flag.Int("r", 10, "agent report interval")
 )
 
 type Config struct {
@@ -33,6 +33,9 @@ type AgentConfig struct {
 func New() *Config {
 	flag.Parse()
 
+	poll := time.Duration(*pollInterval) * time.Second
+	report := time.Duration(*reportInterval) * time.Second
+
 	addr := strings.Split(*address, ":")
 	if len(addr) != 2 {
 		log.Fatal("invalid address")
@@ -46,8 +49,8 @@ func New() *Config {
 		Agent: AgentConfig{
 			Address:        addr[0],
 			Port:           addr[1],
-			PollInterval:   *pollInterval,
-			ReportInterval: *reportInterval,
+			PollInterval:   poll,
+			ReportInterval: report,
 		},
 	}
 }
