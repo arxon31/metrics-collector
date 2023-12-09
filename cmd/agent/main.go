@@ -12,7 +12,7 @@ func main() {
 
 	params := agent2.Params(Cfg.Agent)
 	agent := agent2.New(context.Background(), &params)
-	log.Printf("agent is posting to %s:%s with poll interval %s and report interval %s", params.Address, params.Port, params.PollInterval, params.ReportInterval)
+	log.Printf("agent is posting to %s with poll interval %d and report interval %d", params.Address, params.PollInterval, params.ReportInterval)
 	agent.Run()
 
 }

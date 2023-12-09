@@ -14,7 +14,7 @@ func main() {
 	params := httpserver.Params(cfg.Server)
 
 	server := httpserver.New(&params)
-	log.Printf("server is listening on %s:%s", params.Address, params.Port)
+	log.Printf("server is listening on %s", params.Address)
 
 	server.Run()
 }

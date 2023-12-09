@@ -30,7 +30,6 @@ type Server struct {
 
 type Params struct {
 	Address string
-	Port    string
 }
 
 func New(p *Params) *Server {
@@ -48,7 +47,7 @@ func New(p *Params) *Server {
 
 	return &Server{
 		server: &http.Server{
-			Addr:    p.Address + ":" + p.Port,
+			Addr:    p.Address,
 			Handler: mux,
 		},
 		params: p,

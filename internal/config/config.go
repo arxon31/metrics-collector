@@ -2,9 +2,8 @@ package config
 
 import (
 	"flag"
+	"github.com/caarlos0/env/v10"
 	"log"
-	"strings"
-	"time"
 )
 
 var (
@@ -19,38 +18,41 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Address string
-	Port    string
+	Address string `env:"ADDRESS"`
 }
 
 type AgentConfig struct {
-	Address        string
-	Port           string
-	PollInterval   time.Duration
-	ReportInterval time.Duration
+	Address        string `env:"ADDRESS"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
 }
 
 func New() *Config {
-	flag.Parse()
+	var config Config
 
-	poll := time.Duration(*pollInterval) * time.Second
-	report := time.Duration(*reportInterval) * time.Second
-
-	addr := strings.Split(*address, ":")
-	if len(addr) != 2 {
-		log.Fatal("invalid address")
+	if err := env.Parse(&config.Server); err != nil {
+		log.Fatalf("failed to parse server config: %v", err)
+	}
+	if err := env.Parse(&config.Agent); err != nil {
+		log.Fatalf("failed to parse agent config: %v", err)
 	}
 
-	return &Config{
-		Server: ServerConfig{
-			Address: addr[0],
-			Port:    addr[1],
-		},
-		Agent: AgentConfig{
-			Address:        addr[0],
-			Port:           addr[1],
-			PollInterval:   poll,
-			ReportInterval: report,
-		},
+	if config.Server.Address == "" {
+		flag.Parse()
+		config.Server.Address = *address
 	}
+	if config.Agent.Address == "" {
+		flag.Parse()
+		config.Agent.Address = *address
+	}
+	if config.Agent.PollInterval == 0 {
+		flag.Parse()
+		config.Agent.PollInterval = *pollInterval
+	}
+	if config.Agent.ReportInterval == 0 {
+		flag.Parse()
+		config.Agent.ReportInterval = *reportInterval
+	}
+
+	return &config
 }

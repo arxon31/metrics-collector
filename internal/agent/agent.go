@@ -22,9 +22,8 @@ type Agent struct {
 
 type Params struct {
 	Address        string
-	Port           string
-	PollInterval   time.Duration
-	ReportInterval time.Duration
+	PollInterval   int
+	ReportInterval int
 }
 
 func New(ctx context.Context, params *Params) *Agent {
@@ -43,7 +42,7 @@ func (a *Agent) Run() {
 }
 
 func (a *Agent) pollMetrics() {
-	for range time.Tick(a.params.PollInterval) {
+	for range time.Tick(time.Duration(a.params.PollInterval) * time.Second) {
 		a.update()
 	}
 }
@@ -88,7 +87,7 @@ func (a *Agent) update() {
 }
 
 func (a *Agent) reportMetrics() {
-	for range time.Tick(a.params.ReportInterval) {
+	for range time.Tick(time.Duration(a.params.ReportInterval) * time.Second) {
 		for k, val := range a.metrics.Gauges {
 			if err := a.reportGaugeMetric(k, val); err != nil {
 				fmt.Println(err)
@@ -111,7 +110,7 @@ func (a *Agent) reportGaugeMetric(name metric.Name, value metric.Gauge) error {
 	const op = "agent.reportGaugeMetric()"
 	stringVal := strconv.FormatFloat(float64(value), 'g', -1, 64)
 
-	endpoint := fmt.Sprintf("http://%s:%s/update/gauge/%s/%s", a.params.Address, a.params.Port, string(name), stringVal)
+	endpoint := fmt.Sprintf("http://%s/update/gauge/%s/%s", a.params.Address, string(name), stringVal)
 
 	resp, err := a.client.Post(endpoint, "text/plain", nil)
 	if err != nil {
@@ -130,7 +129,7 @@ func (a *Agent) reportCounterMetric(name metric.Name, value metric.Counter) erro
 
 	stringVal := strconv.FormatInt(int64(value), 10)
 
-	endpoint := fmt.Sprintf("http://%s:%s/update/counter/%s/%s", a.params.Address, a.params.Port, string(name), stringVal)
+	endpoint := fmt.Sprintf("http://%s/update/counter/%s/%s", a.params.Address, string(name), stringVal)
 
 	resp, err := a.client.Post(endpoint, "text/plain", nil)
 	if err != nil {
