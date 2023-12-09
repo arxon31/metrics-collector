@@ -36,8 +36,8 @@ func TestMiddleware(t *testing.T) {
 			w := httptest.NewRecorder()
 			storage := mem.NewMapStorage()
 			handler := &handlers.GaugeHandler{Storage: storage}
-			middleware := reqParamsCheck(handler)
-			middleware.ServeHTTP(w, req)
+			mw := postCheck(handler)
+			mw.ServeHTTP(w, req)
 			res := w.Result()
 			defer res.Body.Close()
 

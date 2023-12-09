@@ -2,11 +2,14 @@ package mem
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/arxon31/metrics-collector/pkg/e"
+	"errors"
+	"fmt"
 	"github.com/arxon31/metrics-collector/pkg/metric"
+	"strings"
 	"sync"
 )
+
+var errIsNotFound = errors.New("not found")
 
 type MapStorage struct {
 	rw *sync.Mutex
@@ -38,14 +41,38 @@ func (s *MapStorage) Count(ctx context.Context, name string, value int64) error 
 	return nil
 }
 
-func (s *MapStorage) MetricsJSON() (string, error) {
-	const op = "MapStorage.MetricsJSON()"
+func (s *MapStorage) GaugeValue(ctx context.Context, name string) (float64, error) {
 	s.rw.Lock()
 	defer s.rw.Unlock()
-	j, err := json.Marshal(s.ms)
-	if err != nil {
-		return "", e.Wrap(op, " can't marshal metrics", err)
+	if val, ok := s.ms.Gauges[metric.Name(name)]; ok {
+		return float64(val), nil
 	}
-	return string(j), nil
+	return 0, errIsNotFound
+}
+
+func (s *MapStorage) CounterValue(ctx context.Context, name string) (int64, error) {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	if val, ok := s.ms.Counters[metric.Name(name)]; ok {
+		return int64(val), nil
+	}
+	return 0, errIsNotFound
+}
+
+func (s *MapStorage) Values(ctx context.Context) (string, error) {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+
+	var body strings.Builder
+
+	for name, value := range s.ms.Gauges {
+		body.WriteString(fmt.Sprintf("%v %v\n", name, value))
+	}
+
+	for name, value := range s.ms.Counters {
+		body.WriteString(fmt.Sprintf("%v %v\n", name, value))
+	}
+
+	return body.String(), nil
 
 }

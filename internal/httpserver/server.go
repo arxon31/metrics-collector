@@ -5,6 +5,7 @@ import (
 	"github.com/arxon31/metrics-collector/internal/handlers"
 	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	"github.com/arxon31/metrics-collector/pkg/e"
+	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"os"
@@ -13,8 +14,10 @@ import (
 )
 
 const (
-	GaugePath   = "/update/gauge/"
-	CounterPath = "/update/counter/"
+	GaugePath      = "/update/gauge/{name}/{value}"
+	CounterPath    = "/update/counter/{name}/{value}"
+	GetMetricPath  = "/value/{type}/{name}"
+	GetMetricsPath = "/"
 )
 
 func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,12 +37,16 @@ type Params struct {
 func New(p *Params) *Server {
 	st := mem.NewMapStorage()
 
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	gaugeHandler := &handlers.GaugeHandler{Storage: st}
 	counterHandler := &handlers.CounterHandler{Storage: st}
+	getMetricHandler := &handlers.GetMetricHandler{Storage: st}
+	getMetricsHandler := &handlers.GetMetricsHandler{Storage: st}
 
-	mux.Handle(GaugePath, Chain(gaugeHandler, reqParamsCheck))
-	mux.Handle(CounterPath, Chain(counterHandler, reqParamsCheck))
+	mux.Handle(GaugePath, Chain(gaugeHandler, postCheck))
+	mux.Handle(CounterPath, Chain(counterHandler, postCheck))
+	mux.Handle(GetMetricPath, Chain(getMetricHandler, getCheck))
+	mux.Handle(GetMetricsPath, Chain(getMetricsHandler, getCheck))
 	mux.Handle("/update/", http.HandlerFunc(notImplementedHandler))
 
 	return &Server{

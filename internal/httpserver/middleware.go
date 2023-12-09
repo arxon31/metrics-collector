@@ -11,7 +11,7 @@ func Chain(h http.Handler, middlewares ...middleware) http.Handler {
 	return h
 }
 
-func reqParamsCheck(next http.Handler) http.Handler {
+func postCheck(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method"+r.Method+" is not allowed", http.StatusMethodNotAllowed)
@@ -23,6 +23,16 @@ func reqParamsCheck(next http.Handler) http.Handler {
 		//	return
 		//
 		//}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getCheck(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method"+r.Method+" is not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }

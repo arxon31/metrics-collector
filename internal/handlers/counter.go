@@ -6,8 +6,8 @@ import (
 	"github.com/arxon31/metrics-collector/internal/storage"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/arxon31/metrics-collector/pkg/metric"
+	"github.com/go-chi/chi/v5"
 	"net/http"
-	"strings"
 )
 
 type CounterHandler struct {
@@ -20,16 +20,18 @@ func (h *CounterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 
 	// Отрезаем дефолтный путь мультиплексора
-	raw := r.URL.Path[len("/update/counter/"):]
-	params := strings.Split(raw, "/")
-	if len(params) != 2 {
-		http.Error(w, "Not enough params for request", http.StatusNotFound)
-		return
-	}
-	name := params[0]
+	//raw := r.URL.Path[len("/update/counter/"):]
+	//params := strings.Split(raw, "/")
+	//if len(params) != 2 {
+	//	http.Error(w, "Not enough params for request", http.StatusNotFound)
+	//	return
+	//}
+	//name := params[0]
+	name := chi.URLParam(r, "name")
+	value := chi.URLParam(r, "value")
 
 	var counter metric.Counter
-	val, err := counter.Validate(params[1])
+	val, err := counter.Validate(value)
 	if err != nil {
 		errStr := fmt.Sprintf("%v", e.Wrap(op, "value is invalid", err))
 		http.Error(w, errStr, http.StatusBadRequest)
