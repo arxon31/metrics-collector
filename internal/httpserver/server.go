@@ -2,26 +2,24 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"github.com/arxon31/metrics-collector/internal/handlers"
 	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
+	"time"
 )
 
 const (
-	PostMetricPath = "/update/{type}/{name}/{value}"
-	GetMetricPath  = "/value/{type}/{name}"
-	GetMetricsPath = "/"
+	postCounterMetricPath = "/update/counter/{name}/{value}"
+	postGaugeMetricPath   = "/update/counter/{name}/{value}"
+	postUnknownMetricPath = "/update/{type}"
+	getMetricPath         = "/value/{type}/{name}"
+	getMetricsPath        = "/"
+	shutdownTimeout       = 3 * time.Second
 )
-
-//func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
-//	http.Error(w, "Not implemented", http.StatusNotImplemented)
-//}
 
 type Server struct {
 	server *http.Server
@@ -36,14 +34,17 @@ func New(p *Params) *Server {
 	st := mem.NewMapStorage()
 
 	mux := chi.NewRouter()
-	postMetricsHandler := &handlers.PostMetrics{Storage: st}
-	getMetricHandler := &handlers.GetMetricHandler{Storage: st}
-	getMetricsHandler := &handlers.GetMetricsHandler{Storage: st}
+	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: st, Provider: st}
+	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: st, Provider: st}
+	getMetricHandler := &handlers.GetMetricHandler{Storage: st, Provider: st}
+	getMetricsHandler := &handlers.GetMetricsHandler{Storage: st, Provider: st}
+	notImplementedHandler := &handlers.NotImplementedHandler{Storage: st, Provider: st}
 
-	mux.Post(PostMetricPath, postMetricsHandler.ServeHTTP)
-	mux.Get(GetMetricPath, getMetricHandler.ServeHTTP)
-	mux.Get(GetMetricsPath, getMetricsHandler.ServeHTTP)
-	//mux.Handle("/update", http.HandlerFunc(notImplementedHandler))
+	mux.Post(postGaugeMetricPath, postGaugeMetricHandler.ServeHTTP)
+	mux.Post(postCounterMetricPath, postCounterMetricHandler.ServeHTTP)
+	mux.Post(postUnknownMetricPath, notImplementedHandler.ServeHTTP)
+	mux.Get(getMetricPath, getMetricHandler.ServeHTTP)
+	mux.Get(getMetricsPath, getMetricsHandler.ServeHTTP)
 
 	return &Server{
 		server: &http.Server{
@@ -54,27 +55,25 @@ func New(p *Params) *Server {
 	}
 }
 
-func (s *Server) Run() {
+func (s *Server) Run(ctx context.Context) {
 	const op = "httpserver.Server.Run()"
-	done := make(chan struct{})
-
 	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-		<-stop
 
-		if err := s.server.Shutdown(context.Background()); err != nil {
-			log.Fatal(e.Wrap(op, "failed to shutdown server", err))
+		err := s.server.ListenAndServe()
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(e.Wrap(op, "failed to start server", err))
 		}
-		close(done)
+
 	}()
 
-	err := s.server.ListenAndServe()
-	if err != http.ErrServerClosed {
-		log.Fatal(e.Wrap(op, "failed to start server", err))
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(ctx, shutdownTimeout)
+	defer cancel()
+
+	if err := s.server.Shutdown(shutdownCtx); err != nil {
+		log.Println(err)
 	}
 
-	<-done
-
-	log.Fatal(op, " server gracefully stopped")
+	log.Println(op, " server gracefully stopped")
 }

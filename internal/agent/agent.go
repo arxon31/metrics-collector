@@ -3,53 +3,70 @@ package agent
 import (
 	"context"
 	"fmt"
-	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/arxon31/metrics-collector/pkg/e"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type Agent struct {
 	client  *http.Client
 	params  *Params
 	metrics *metric.Metrics
-	ctx     context.Context
 }
 
 type Params struct {
 	Address        string
-	PollInterval   int
-	ReportInterval int
+	PollInterval   time.Duration
+	ReportInterval time.Duration
 }
 
-func New(ctx context.Context, params *Params) *Agent {
-	metrics := metric.New()
+func New(params *Params) *Agent {
 	return &Agent{
 		client:  &http.Client{},
 		params:  params,
-		metrics: metrics,
-		ctx:     ctx,
+		metrics: metric.New(),
 	}
 }
 
-func (a *Agent) Run() {
-	go a.pollMetrics()
-	a.reportMetrics()
+func (a *Agent) Run(ctx context.Context) {
+	done := make(chan struct{})
+
+	go a.pollMetrics(ctx)
+	go a.reportMetrics(ctx)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				done <- struct{}{}
+			}
+		}
+	}()
+
+	<-done
+	log.Println("agent gracefully stopped")
+
 }
 
-func (a *Agent) pollMetrics() {
-	for range time.Tick(time.Duration(a.params.PollInterval) * time.Second) {
-		a.update()
+func (a *Agent) pollMetrics(ctx context.Context) {
+	pollTicker := time.NewTicker(a.params.PollInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			break
+		case <-pollTicker.C:
+			a.update()
+		}
 	}
 }
 
 func (a *Agent) update() {
-	a.metrics.RW.Lock()
-	defer a.metrics.RW.Unlock()
 
 	ms := &runtime.MemStats{}
 	runtime.ReadMemStats(ms)
@@ -86,22 +103,29 @@ func (a *Agent) update() {
 	a.metrics.Gauges[metric.RandomValue] = metric.Gauge(rand.Float64())
 }
 
-func (a *Agent) reportMetrics() {
-	for range time.Tick(time.Duration(a.params.ReportInterval) * time.Second) {
-		for k, val := range a.metrics.Gauges {
-			if err := a.reportGaugeMetric(k, val); err != nil {
-				fmt.Println(err)
-				continue
+func (a *Agent) reportMetrics(ctx context.Context) {
+	reportTicker := time.NewTicker(a.params.ReportInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			break
+		case <-reportTicker.C:
+			for k, val := range a.metrics.Gauges {
+				if err := a.reportGaugeMetric(k, val); err != nil {
+					log.Println(err)
+					continue
+				}
+				log.Printf("reported metric %s with value %f\n", k, val)
 			}
-			log.Printf("reported metric %s with value %f\n", k, val)
-		}
-		for k, val := range a.metrics.Counters {
-			if err := a.reportCounterMetric(k, val); err != nil {
-				fmt.Println(err)
-				continue
+			for k, val := range a.metrics.Counters {
+				if err := a.reportCounterMetric(k, val); err != nil {
+					log.Println(err)
+					continue
+				}
+				log.Printf("reported metric %s with value %v\n", k, val)
 			}
-			log.Printf("reported metric %s with value %v\n", k, val)
 		}
+
 	}
 
 }

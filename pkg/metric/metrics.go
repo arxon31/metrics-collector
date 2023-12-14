@@ -3,7 +3,6 @@ package metric
 import (
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"strconv"
-	"sync"
 )
 
 const (
@@ -12,7 +11,6 @@ const (
 )
 
 type Metrics struct {
-	RW       sync.RWMutex
 	Gauges   map[Name]Gauge
 	Counters map[Name]Counter
 }
@@ -60,22 +58,22 @@ const (
 
 type Gauge float64
 
-func (*Gauge) Validate(value string) (interface{}, error) {
-	const op = "metric.Validate(*Gauge)"
+func (*Gauge) GaugeFtomString(value string) (float64, error) {
+	const op = "metric.Parse(*Gauge)"
 	val, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		return nil, e.Wrap(op, "failed to parse value", err)
+		return 0, e.Wrap(op, "failed to parse value", err)
 	}
 	return val, nil
 }
 
 type Counter int64
 
-func (*Counter) Validate(value string) (interface{}, error) {
-	const op = "metric.Validate(*Counter)"
+func (*Counter) CounterFromString(value string) (int64, error) {
+	const op = "metric.Parse(*Counter)"
 	val, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return nil, e.Wrap(op, "failed to parse value", err)
+		return 0, e.Wrap(op, "failed to parse value", err)
 	}
 	return val, nil
 }

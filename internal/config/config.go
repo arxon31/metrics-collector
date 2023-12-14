@@ -3,7 +3,7 @@ package config
 import (
 	"flag"
 	"github.com/caarlos0/env/v10"
-	"log"
+	"time"
 )
 
 var (
@@ -12,47 +12,51 @@ var (
 	reportInterval = flag.Int("r", 10, "agent report interval")
 )
 
-type Config struct {
-	Server ServerConfig
-	Agent  AgentConfig
-}
-
 type ServerConfig struct {
 	Address string `env:"ADDRESS"`
 }
 
 type AgentConfig struct {
-	Address        string `env:"ADDRESS"`
-	PollInterval   int    `env:"POLL_INTERVAL"`
-	ReportInterval int    `env:"REPORT_INTERVAL"`
+	Address        string        `env:"ADDRESS"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
 }
 
-func New() *Config {
-	var config Config
+func NewServerConfig() (*ServerConfig, error) {
 
-	if err := env.Parse(&config.Server); err != nil {
-		log.Fatalf("failed to parse server config: %v", err)
-	}
-	if err := env.Parse(&config.Agent); err != nil {
-		log.Fatalf("failed to parse agent config: %v", err)
+	var config ServerConfig
+
+	if err := env.Parse(&config); err != nil {
+		return &config, err
 	}
 
-	if config.Server.Address == "" {
+	if config.Address == "" {
 		flag.Parse()
-		config.Server.Address = *address
-	}
-	if config.Agent.Address == "" {
-		flag.Parse()
-		config.Agent.Address = *address
-	}
-	if config.Agent.PollInterval == 0 {
-		flag.Parse()
-		config.Agent.PollInterval = *pollInterval
-	}
-	if config.Agent.ReportInterval == 0 {
-		flag.Parse()
-		config.Agent.ReportInterval = *reportInterval
+		config.Address = *address
 	}
 
-	return &config
+	return &config, nil
+}
+
+func NewAgentConfig() (*AgentConfig, error) {
+	var config AgentConfig
+
+	if err := env.Parse(&config); err != nil {
+		return &config, err
+	}
+
+	if config.Address == "" {
+		flag.Parse()
+		config.Address = *address
+	}
+	if config.PollInterval == 0 {
+		flag.Parse()
+		config.PollInterval = time.Duration(*pollInterval) * time.Second
+	}
+	if config.ReportInterval == 0 {
+		flag.Parse()
+		config.ReportInterval = time.Duration(*reportInterval) * time.Second
+	}
+
+	return &config, nil
 }
