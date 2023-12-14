@@ -35,19 +35,12 @@ func New(params *Params) *Agent {
 }
 
 func (a *Agent) Run(ctx context.Context) {
-	done := make(chan struct{})
 
 	go a.pollMetrics(ctx)
 	go a.reportMetrics(ctx)
 
-	go func() {
-		select {
-		case <-ctx.Done():
-			done <- struct{}{}
-		}
-	}()
+	<-ctx.Done()
 
-	<-done
 	log.Println("agent gracefully stopped")
 
 }
