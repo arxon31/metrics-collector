@@ -14,8 +14,8 @@ import (
 
 const (
 	postCounterMetricPath = "/update/counter/{name}/{value}"
-	postGaugeMetricPath   = "/update/counter/{name}/{value}"
-	postUnknownMetricPath = "/update/{type}"
+	postGaugeMetricPath   = "/update/gauge/{name}/{value}"
+	postUnknownMetricPath = "/update/{type}/{name}/{value}"
 	getMetricPath         = "/value/{type}/{name}"
 	getMetricsPath        = "/"
 	shutdownTimeout       = 3 * time.Second

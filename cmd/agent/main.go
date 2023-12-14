@@ -15,7 +15,7 @@ func main() {
 	log.Println("starting agent...")
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	//defer cancel()
 
 	go func() {
 		stop := make(chan os.Signal, 1)

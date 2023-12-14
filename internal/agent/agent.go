@@ -41,11 +41,9 @@ func (a *Agent) Run(ctx context.Context) {
 	go a.reportMetrics(ctx)
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				done <- struct{}{}
-			}
+		select {
+		case <-ctx.Done():
+			done <- struct{}{}
 		}
 	}()
 
@@ -56,13 +54,13 @@ func (a *Agent) Run(ctx context.Context) {
 
 func (a *Agent) pollMetrics(ctx context.Context) {
 	pollTicker := time.NewTicker(a.params.PollInterval)
-	for {
-		select {
-		case <-ctx.Done():
-			break
-		case <-pollTicker.C:
-			a.update()
-		}
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-pollTicker.C:
+		a.update()
+
 	}
 }
 
@@ -105,27 +103,25 @@ func (a *Agent) update() {
 
 func (a *Agent) reportMetrics(ctx context.Context) {
 	reportTicker := time.NewTicker(a.params.ReportInterval)
-	for {
-		select {
-		case <-ctx.Done():
-			break
-		case <-reportTicker.C:
-			for k, val := range a.metrics.Gauges {
-				if err := a.reportGaugeMetric(k, val); err != nil {
-					log.Println(err)
-					continue
-				}
-				log.Printf("reported metric %s with value %f\n", k, val)
-			}
-			for k, val := range a.metrics.Counters {
-				if err := a.reportCounterMetric(k, val); err != nil {
-					log.Println(err)
-					continue
-				}
-				log.Printf("reported metric %s with value %v\n", k, val)
-			}
-		}
 
+	select {
+	case <-ctx.Done():
+		return
+	case <-reportTicker.C:
+		for k, val := range a.metrics.Gauges {
+			if err := a.reportGaugeMetric(k, val); err != nil {
+				log.Println(err)
+				continue
+			}
+			log.Printf("reported metric %s with value %f\n", k, val)
+		}
+		for k, val := range a.metrics.Counters {
+			if err := a.reportCounterMetric(k, val); err != nil {
+				log.Println(err)
+				continue
+			}
+			log.Printf("reported metric %s with value %v\n", k, val)
+		}
 	}
 
 }

@@ -47,6 +47,7 @@ func (h *PostCounterMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 func (h *PostGaugeMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.PostGaugeMetric.ServeHTTP()"
 
