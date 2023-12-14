@@ -11,8 +11,8 @@ import (
 
 var (
 	address        = flag.String("a", "localhost:8080", "server address")
-	pollInterval   = flag.Duration("p", 2*time.Second, "agent poll interval")
-	reportInterval = flag.Duration("r", 10*time.Second, "agent report interval")
+	pollInterval   = flag.Int("p", 2, "agent poll interval")
+	reportInterval = flag.Int("r", 10, "agent report interval")
 )
 
 const (
@@ -68,7 +68,7 @@ func NewAgentConfig() (*AgentConfig, error) {
 		config.PollInterval = time.Duration(pollIntervalInt) * time.Second
 	} else {
 		flag.Parse()
-		config.PollInterval = *pollInterval
+		config.PollInterval = time.Duration(*pollInterval) * time.Second
 	}
 
 	reportIntervalString, reportExist := os.LookupEnv(ReportIntervalEnv)
@@ -80,7 +80,7 @@ func NewAgentConfig() (*AgentConfig, error) {
 		config.ReportInterval = time.Duration(reportIntervalInt) * time.Second
 	} else {
 		flag.Parse()
-		config.ReportInterval = *reportInterval
+		config.ReportInterval = time.Duration(*reportInterval) * time.Second
 	}
 
 	return &config, nil
