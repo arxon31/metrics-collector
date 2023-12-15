@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/handlers"
-	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"log"
@@ -30,15 +29,14 @@ type Params struct {
 	Address string
 }
 
-func New(p *Params) *Server {
-	st := mem.NewMapStorage()
+func New(p *Params, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
 
 	mux := chi.NewRouter()
-	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: st, Provider: st}
-	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: st, Provider: st}
-	getMetricHandler := &handlers.GetMetricHandler{Storage: st, Provider: st}
-	getMetricsHandler := &handlers.GetMetricsHandler{Storage: st, Provider: st}
-	notImplementedHandler := &handlers.NotImplementedHandler{Storage: st, Provider: st}
+	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider}
+	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: storage, Provider: provider}
+	getMetricHandler := &handlers.GetMetricHandler{Storage: storage, Provider: provider}
+	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider}
+	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider}
 
 	mux.Post(postGaugeMetricPath, postGaugeMetricHandler.ServeHTTP)
 	mux.Post(postCounterMetricPath, postCounterMetricHandler.ServeHTTP)

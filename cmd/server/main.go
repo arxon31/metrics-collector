@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	"log"
 	"os"
 	"os/signal"
@@ -29,9 +30,11 @@ func main() {
 		log.Fatalf("failed to parse config due to error: %v", err)
 	}
 
+	storage := mem.NewMapStorage()
+
 	params := httpserver.Params(*cfg)
 
-	server := httpserver.New(&params)
+	server := httpserver.New(&params, storage, storage)
 	log.Printf("server is listening on %s", params.Address)
 
 	server.Run(ctx)

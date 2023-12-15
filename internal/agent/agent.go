@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/arxon31/metrics-collector/pkg/e"
@@ -35,26 +36,34 @@ func New(params *Params) *Agent {
 }
 
 func (a *Agent) Run(ctx context.Context) {
+	wg := new(sync.WaitGroup)
 
-	go a.pollMetrics(ctx)
-	go a.reportMetrics(ctx)
+	wg.Add(2)
+
+	go a.pollMetrics(ctx, wg)
+	go a.reportMetrics(ctx, wg)
 
 	<-ctx.Done()
+
+	wg.Wait()
 
 	log.Println("agent gracefully stopped")
 
 }
 
-func (a *Agent) pollMetrics(ctx context.Context) {
+func (a *Agent) pollMetrics(ctx context.Context, wg *sync.WaitGroup) {
 	pollTicker := time.NewTicker(a.params.PollInterval)
-
-	select {
-	case <-ctx.Done():
-		return
-	case <-pollTicker.C:
-		a.update()
-
+	defer pollTicker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			wg.Done()
+			return
+		case <-pollTicker.C:
+			a.update()
+		}
 	}
+
 }
 
 func (a *Agent) update() {
@@ -90,30 +99,34 @@ func (a *Agent) update() {
 	a.metrics.Gauges[metric.Sys] = metric.Gauge(ms.Sys)
 	a.metrics.Gauges[metric.TotalAlloc] = metric.Gauge(ms.TotalAlloc)
 
-	a.metrics.Counters[metric.PollCount] += 1
+	a.metrics.Counters[metric.PollCount]++
 	a.metrics.Gauges[metric.RandomValue] = metric.Gauge(rand.Float64())
 }
 
-func (a *Agent) reportMetrics(ctx context.Context) {
+func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 	reportTicker := time.NewTicker(a.params.ReportInterval)
+	defer reportTicker.Stop()
 
-	select {
-	case <-ctx.Done():
-		return
-	case <-reportTicker.C:
-		for k, val := range a.metrics.Gauges {
-			if err := a.reportGaugeMetric(k, val); err != nil {
-				log.Println(err)
-				continue
+	for {
+		select {
+		case <-ctx.Done():
+			wg.Done()
+			return
+		case <-reportTicker.C:
+			for k, val := range a.metrics.Gauges {
+				if err := a.reportGaugeMetric(k, val); err != nil {
+					log.Println(err)
+					continue
+				}
+				log.Printf("reported metric %s with value %f\n", k, val)
 			}
-			log.Printf("reported metric %s with value %f\n", k, val)
-		}
-		for k, val := range a.metrics.Counters {
-			if err := a.reportCounterMetric(k, val); err != nil {
-				log.Println(err)
-				continue
+			for k, val := range a.metrics.Counters {
+				if err := a.reportCounterMetric(k, val); err != nil {
+					log.Println(err)
+					continue
+				}
+				log.Printf("reported metric %s with value %v\n", k, val)
 			}
-			log.Printf("reported metric %s with value %v\n", k, val)
 		}
 	}
 
