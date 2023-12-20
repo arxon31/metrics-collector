@@ -1,6 +1,8 @@
 package handlers
 
-import "context"
+import (
+	"context"
+)
 
 type MetricProvider interface {
 	GaugeValue(ctx context.Context, name string) (float64, error)

@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/handlers"
+	"github.com/arxon31/metrics-collector/internal/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"time"
@@ -23,13 +25,14 @@ const (
 type Server struct {
 	server *http.Server
 	params *Params
+	logger *zap.SugaredLogger
 }
 
 type Params struct {
 	Address string
 }
 
-func New(p *Params, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
+func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
 
 	mux := chi.NewRouter()
 	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider}
@@ -38,11 +41,11 @@ func New(p *Params, storage handlers.MetricCollector, provider handlers.MetricPr
 	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider}
 	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider}
 
-	mux.Post(postGaugeMetricPath, postGaugeMetricHandler.ServeHTTP)
-	mux.Post(postCounterMetricPath, postCounterMetricHandler.ServeHTTP)
-	mux.Post(postUnknownMetricPath, notImplementedHandler.ServeHTTP)
-	mux.Get(getMetricPath, getMetricHandler.ServeHTTP)
-	mux.Get(getMetricsPath, getMetricsHandler.ServeHTTP)
+	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
+	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
+	mux.Post(postUnknownMetricPath, middlewares.WithLogging(logger, notImplementedHandler).ServeHTTP)
+	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
+	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{
@@ -50,6 +53,7 @@ func New(p *Params, storage handlers.MetricCollector, provider handlers.MetricPr
 			Handler: mux,
 		},
 		params: p,
+		logger: logger,
 	}
 }
 
@@ -59,7 +63,7 @@ func (s *Server) Run(ctx context.Context) {
 
 		err := s.server.ListenAndServe()
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal(e.Wrap(op, "failed to start server", err))
+			s.logger.Errorln(e.Wrap(op, "failed to start server", err))
 		}
 
 	}()
@@ -73,5 +77,5 @@ func (s *Server) Run(ctx context.Context) {
 		log.Println(err)
 	}
 
-	log.Println(op, " server gracefully stopped")
+	s.logger.Infoln(op, " server gracefully stopped")
 }
