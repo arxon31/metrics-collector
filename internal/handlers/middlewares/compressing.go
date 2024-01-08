@@ -28,7 +28,7 @@ func WithCompressing(next http.Handler) http.Handler {
 	const op = "middlewares.WithCompressing()"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := w
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") && compressibleTypes[r.Header.Get("Content-Type")] {
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") && (compressibleTypes[r.Header.Get("Content-Type")] || compressibleTypes[r.Header.Get("Accept")]) {
 			gzipWriter := gzip.NewWriter(w)
 			defer gzipWriter.Close()
 
