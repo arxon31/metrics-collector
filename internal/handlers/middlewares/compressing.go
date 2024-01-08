@@ -23,37 +23,20 @@ func (w compressWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-type compressReader struct {
-	io.ReadCloser
-	zr *gzip.Reader
-}
-
-func (r compressReader) Read(b []byte) (int, error) {
-	return r.zr.Read(b)
-}
-
-func (r compressReader) Close() error {
-	if err := r.Close(); err != nil {
-		return err
-	}
-
-	return r.zr.Close()
-}
-
 func WithCompressing(next http.Handler) http.Handler {
 	const op = "middlewares.WithCompressing()"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := w
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") && compressibleTypes[r.Header.Get("Content-Type")] {
 			gzipWriter := gzip.NewWriter(w)
 			defer gzipWriter.Close()
-
-			//w.Header().Set("Content-Encoding", "gzip")
 
 			writer = compressWriter{
 				ResponseWriter: w,
 				Writer:         gzipWriter,
 			}
+
+			w.Header().Set("Content-Encoding", "gzip")
 
 		}
 		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
@@ -64,11 +47,6 @@ func WithCompressing(next http.Handler) http.Handler {
 				return
 			}
 			defer gzipReader.Close()
-
-			//reader := compressReader{
-			//	ReadCloser: r.Body,
-			//	zr:         gzipReader,
-			//}
 
 			r.Body = gzipReader
 

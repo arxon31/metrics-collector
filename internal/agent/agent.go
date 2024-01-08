@@ -204,6 +204,9 @@ func (a *Agent) reportGaugeMetricJSON(name metric.Name, value metric.Gauge) erro
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(metricJSON))
+	if err != nil {
+		return e.WrapError(op, "failed to create request", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := a.client.Do(req)
@@ -236,6 +239,9 @@ func (a *Agent) reportCounterMetricJSON(name metric.Name, value metric.Counter) 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(metricJSON))
+	if err != nil {
+		return e.WrapError(op, "failed to create request", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := a.client.Do(req)
@@ -271,6 +277,9 @@ func (a *Agent) reportGaugeMetricGZIP(name metric.Name, value metric.Gauge) erro
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(compressedMetricJSON))
+	if err != nil {
+		return e.WrapError(op, "failed to create request", err)
+	}
 	req.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := a.client.Do(req)
@@ -305,6 +314,9 @@ func (a *Agent) reportCounterMetricGZIP(name metric.Name, value metric.Counter) 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(compressedMetric))
+	if err != nil {
+		return e.WrapError(op, "failed to create request", err)
+	}
 	req.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := a.client.Do(req)
