@@ -12,6 +12,8 @@ type PostJSONMetric Handler
 func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.PostJSONMetric.ServeHTTP()"
 
+	w.Header().Set("Content-Type", "application/json")
+
 	var m metric.MetricDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -41,7 +43,6 @@ func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
 
