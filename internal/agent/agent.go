@@ -116,14 +116,14 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		case <-reportTicker.C:
 			for k, val := range a.metrics.Gauges {
-				if err := a.reportGaugeMetricJson(k, val); err != nil {
+				if err := a.reportGaugeMetricJSON(k, val); err != nil {
 					log.Println(err)
 					continue
 				}
 				log.Printf("reported metric %s with value %f\n", k, val)
 			}
 			for k, val := range a.metrics.Counters {
-				if err := a.reportCounterMetricJson(k, val); err != nil {
+				if err := a.reportCounterMetricJSON(k, val); err != nil {
 					log.Println(err)
 					continue
 				}
@@ -171,8 +171,8 @@ func (a *Agent) reportCounterMetric(name metric.Name, value metric.Counter) erro
 	return nil
 }
 
-func (a *Agent) reportGaugeMetricJson(name metric.Name, value metric.Gauge) error {
-	const op = "agent.reportGaugeMetricJson()"
+func (a *Agent) reportGaugeMetricJSON(name metric.Name, value metric.Gauge) error {
+	const op = "agent.reportGaugeMetricJSON()"
 
 	var m metric.MetricDTO
 
@@ -181,14 +181,14 @@ func (a *Agent) reportGaugeMetricJson(name metric.Name, value metric.Gauge) erro
 	val := float64(value)
 	m.Value = &val
 
-	metricJson, err := json.Marshal(m)
+	metricJSON, err := json.Marshal(m)
 	if err != nil {
 		return e.WrapError(op, "failed to marshal metric", err)
 	}
 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
-	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJson))
+	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJSON))
 	if err != nil {
 		return e.WrapError(op, "failed to report metric", err)
 	}
@@ -200,8 +200,8 @@ func (a *Agent) reportGaugeMetricJson(name metric.Name, value metric.Gauge) erro
 
 }
 
-func (a *Agent) reportCounterMetricJson(name metric.Name, value metric.Counter) error {
-	const op = "agent.reportCounterMetricJson()"
+func (a *Agent) reportCounterMetricJSON(name metric.Name, value metric.Counter) error {
+	const op = "agent.reportCounterMetricJSON()"
 
 	var m metric.MetricDTO
 
@@ -210,14 +210,14 @@ func (a *Agent) reportCounterMetricJson(name metric.Name, value metric.Counter) 
 	val := int64(value)
 	m.Delta = &val
 
-	metricJson, err := json.Marshal(m)
+	metricJSON, err := json.Marshal(m)
 	if err != nil {
 		return e.WrapError(op, "failed to marshal metric", err)
 	}
 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
-	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJson))
+	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJSON))
 	if err != nil {
 		return e.WrapError(op, "failed to report metric", err)
 	}

@@ -19,8 +19,8 @@ const (
 	postUnknownMetricPath = "/update/{type}/{name}/{value}"
 	getMetricPath         = "/value/{type}/{name}"
 	getMetricsPath        = "/"
-	postJsonPath          = "/update/"
-	getJsonPath           = "/value/"
+	postJSONPath          = "/update/"
+	getJSONPath           = "/value/"
 	shutdownTimeout       = 3 * time.Second
 )
 
@@ -42,16 +42,16 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	getMetricHandler := &handlers.GetMetricHandler{Storage: storage, Provider: provider}
 	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider}
 	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider}
-	postJsonHandler := &handlers.PostJsonMetric{Storage: storage, Provider: provider}
-	getJsonHandler := &handlers.GetJsonMetric{Storage: storage, Provider: provider}
+	postJSONHandler := &handlers.PostJSONMetric{Storage: storage, Provider: provider}
+	getJSONHandler := &handlers.GetJSONMetric{Storage: storage, Provider: provider}
 
 	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
 	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
 	mux.Post(postUnknownMetricPath, middlewares.WithLogging(logger, notImplementedHandler).ServeHTTP)
-	mux.Post(postJsonPath, middlewares.WithLogging(logger, postJsonHandler).ServeHTTP)
+	mux.Post(postJSONPath, middlewares.WithLogging(logger, postJSONHandler).ServeHTTP)
 	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
 	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
-	mux.Get(getJsonPath, middlewares.WithLogging(logger, getJsonHandler).ServeHTTP)
+	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{

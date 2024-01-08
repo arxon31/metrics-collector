@@ -7,10 +7,10 @@ import (
 	"net/http"
 )
 
-type PostJsonMetric Handler
+type PostJSONMetric Handler
 
-func (h *PostJsonMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	const op = "handlers.PostJsonMetric.ServeHTTP()"
+func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	const op = "handlers.PostJSONMetric.ServeHTTP()"
 
 	var m metric.MetricDTO
 
