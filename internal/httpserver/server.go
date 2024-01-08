@@ -19,6 +19,8 @@ const (
 	postUnknownMetricPath = "/update/{type}/{name}/{value}"
 	getMetricPath         = "/value/{type}/{name}"
 	getMetricsPath        = "/"
+	postJsonPath          = "/update/"
+	getJsonPath           = "/value/"
 	shutdownTimeout       = 3 * time.Second
 )
 
@@ -40,12 +42,16 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	getMetricHandler := &handlers.GetMetricHandler{Storage: storage, Provider: provider}
 	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider}
 	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider}
+	postJsonHandler := &handlers.PostJsonMetric{Storage: storage, Provider: provider}
+	getJsonHandler := &handlers.GetJsonMetric{Storage: storage, Provider: provider}
 
 	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
 	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
 	mux.Post(postUnknownMetricPath, middlewares.WithLogging(logger, notImplementedHandler).ServeHTTP)
+	mux.Post(postJsonPath, middlewares.WithLogging(logger, postJsonHandler).ServeHTTP)
 	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
 	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
+	mux.Get(getJsonPath, middlewares.WithLogging(logger, getJsonHandler).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{
@@ -63,7 +69,7 @@ func (s *Server) Run(ctx context.Context) {
 
 		err := s.server.ListenAndServe()
 		if !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Errorln(e.Wrap(op, "failed to start server", err))
+			s.logger.Errorln(e.WrapError(op, "failed to start server", err))
 		}
 
 	}()

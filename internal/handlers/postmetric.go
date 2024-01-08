@@ -32,13 +32,13 @@ func (h *PostCounterMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var counter metric.Counter
 	val, err := counter.CounterFromString(value)
 	if err != nil {
-		errStr := fmt.Sprintf("%v", e.Wrap(op, "value is invalid", err))
+		errStr := fmt.Sprintf("%v", e.WrapError(op, "value is invalid", err))
 		http.Error(w, errStr, http.StatusBadRequest)
 		return
 	}
 
 	if err := h.Storage.Count(r.Context(), name, val); err != nil {
-		errStr := fmt.Sprintf("%v", e.Wrap(op, "failed to replace metric", err))
+		errStr := fmt.Sprintf("%v", e.WrapError(op, "failed to replace metric", err))
 		http.Error(w, errStr, http.StatusInternalServerError)
 		return
 	}
@@ -56,14 +56,14 @@ func (h *PostGaugeMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var gauge metric.Gauge
 
-	val, err := gauge.GaugeFtomString(value)
+	val, err := gauge.GaugeFromString(value)
 	if err != nil {
-		errStr := fmt.Sprintf("%v", e.Wrap(op, "value is invalid", err))
+		errStr := fmt.Sprintf("%v", e.WrapError(op, "value is invalid", err))
 		http.Error(w, errStr, http.StatusBadRequest)
 		return
 	}
 	if err := h.Storage.Replace(r.Context(), name, val); err != nil {
-		errStr := fmt.Sprintf("%v", e.Wrap(op, "failed to replace metric", err))
+		errStr := fmt.Sprintf("%v", e.WrapError(op, "failed to replace metric", err))
 		http.Error(w, errStr, http.StatusInternalServerError)
 		return
 	}
@@ -76,7 +76,7 @@ func (h *NotImplementedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	t := chi.URLParam(r, "type")
 	if t != "gauge" && t != "counter" {
-		errStr := fmt.Sprintf("%v", e.Wrap(op, "unknown metric type", nil))
+		errStr := fmt.Sprintf("%v", e.WrapError(op, "unknown metric type", nil))
 		http.Error(w, errStr, http.StatusNotImplemented)
 		return
 	}

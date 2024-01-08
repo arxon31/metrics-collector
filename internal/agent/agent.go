@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -114,14 +116,14 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		case <-reportTicker.C:
 			for k, val := range a.metrics.Gauges {
-				if err := a.reportGaugeMetric(k, val); err != nil {
+				if err := a.reportGaugeMetricJson(k, val); err != nil {
 					log.Println(err)
 					continue
 				}
 				log.Printf("reported metric %s with value %f\n", k, val)
 			}
 			for k, val := range a.metrics.Counters {
-				if err := a.reportCounterMetric(k, val); err != nil {
+				if err := a.reportCounterMetricJson(k, val); err != nil {
 					log.Println(err)
 					continue
 				}
@@ -140,12 +142,12 @@ func (a *Agent) reportGaugeMetric(name metric.Name, value metric.Gauge) error {
 
 	resp, err := a.client.Post(endpoint, "text/plain", nil)
 	if err != nil {
-		return e.Wrap(op, "failed to report metric", err)
+		return e.WrapError(op, "failed to report metric", err)
 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return e.Wrap(op, "failed to report metric", err)
+		return e.WrapError(op, "failed to report metric", err)
 	}
 	return nil
 }
@@ -159,12 +161,71 @@ func (a *Agent) reportCounterMetric(name metric.Name, value metric.Counter) erro
 
 	resp, err := a.client.Post(endpoint, "text/plain", nil)
 	if err != nil {
-		return e.Wrap(op, "failed to report metric", err)
+		return e.WrapError(op, "failed to report metric", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return e.Wrap(op, "failed to report metric", err)
+		return e.WrapError(op, "failed to report metric", err)
 	}
+	a.metrics.Counters[name] = 0
+	return nil
+}
+
+func (a *Agent) reportGaugeMetricJson(name metric.Name, value metric.Gauge) error {
+	const op = "agent.reportGaugeMetricJson()"
+
+	var m metric.MetricDTO
+
+	m.ID = string(name)
+	m.MType = "gauge"
+	val := float64(value)
+	m.Value = &val
+
+	metricJson, err := json.Marshal(m)
+	if err != nil {
+		return e.WrapError(op, "failed to marshal metric", err)
+	}
+
+	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
+
+	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJson))
+	if err != nil {
+		return e.WrapError(op, "failed to report metric", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return e.WrapError(op, "failed to report metric", err)
+	}
+	return nil
+
+}
+
+func (a *Agent) reportCounterMetricJson(name metric.Name, value metric.Counter) error {
+	const op = "agent.reportCounterMetricJson()"
+
+	var m metric.MetricDTO
+
+	m.ID = string(name)
+	m.MType = "counter"
+	val := int64(value)
+	m.Delta = &val
+
+	metricJson, err := json.Marshal(m)
+	if err != nil {
+		return e.WrapError(op, "failed to marshal metric", err)
+	}
+
+	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
+
+	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJson))
+	if err != nil {
+		return e.WrapError(op, "failed to report metric", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return e.WrapError(op, "failed to report metric", err)
+	}
+
 	a.metrics.Counters[name] = 0
 	return nil
 }

@@ -44,7 +44,7 @@ func (h *GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("%v", value)))
 
 	default:
-		errStr := fmt.Sprintf("%v", e.Wrap(op, "unknown metric type", nil))
+		errStr := fmt.Sprintf("%v", e.WrapError(op, "unknown metric type", nil))
 		http.Error(w, errStr, http.StatusNotFound)
 	}
 
@@ -56,7 +56,7 @@ func (h *GetMetricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.GetMetricsHandler.ServeHTTP()"
 	body, err := h.Provider.Values(r.Context())
 	if err != nil {
-		errStr := fmt.Sprintf("%v", e.Wrap(op, "failed to get metrics", err))
+		errStr := fmt.Sprintf("%v", e.WrapError(op, "failed to get metrics", err))
 		http.Error(w, errStr, http.StatusInternalServerError)
 		return
 	}
