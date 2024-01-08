@@ -2,10 +2,13 @@ package e
 
 import "fmt"
 
-func Wrap(op, msg string, err error) error {
+func WrapError(op, msg string, err error) error {
 	return fmt.Errorf("%s: %s due to error: %w", op, msg, err)
 }
 
 func WrapString(op, msg string, err error) string {
+	if err == nil {
+		return fmt.Sprintf("%s: %s", op, msg)
+	}
 	return fmt.Sprintf("%s: %s due to error: %v", op, msg, err)
 }
