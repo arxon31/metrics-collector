@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/handlers"
+	"github.com/arxon31/metrics-collector/internal/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"time"
@@ -17,19 +19,22 @@ const (
 	postUnknownMetricPath = "/update/{type}/{name}/{value}"
 	getMetricPath         = "/value/{type}/{name}"
 	getMetricsPath        = "/"
+	postJSONPath          = "/update/"
+	getJSONPath           = "/value/"
 	shutdownTimeout       = 3 * time.Second
 )
 
 type Server struct {
 	server *http.Server
 	params *Params
+	logger *zap.SugaredLogger
 }
 
 type Params struct {
 	Address string
 }
 
-func New(p *Params, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
+func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
 
 	mux := chi.NewRouter()
 	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider}
@@ -37,19 +42,24 @@ func New(p *Params, storage handlers.MetricCollector, provider handlers.MetricPr
 	getMetricHandler := &handlers.GetMetricHandler{Storage: storage, Provider: provider}
 	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider}
 	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider}
+	postJSONHandler := &handlers.PostJSONMetric{Storage: storage, Provider: provider}
+	getJSONHandler := &handlers.GetJSONMetric{Storage: storage, Provider: provider}
 
-	mux.Post(postGaugeMetricPath, postGaugeMetricHandler.ServeHTTP)
-	mux.Post(postCounterMetricPath, postCounterMetricHandler.ServeHTTP)
-	mux.Post(postUnknownMetricPath, notImplementedHandler.ServeHTTP)
-	mux.Get(getMetricPath, getMetricHandler.ServeHTTP)
-	mux.Get(getMetricsPath, getMetricsHandler.ServeHTTP)
+	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
+	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
+	mux.Post(postUnknownMetricPath, middlewares.WithLogging(logger, notImplementedHandler).ServeHTTP)
+	mux.Post(postJSONPath, middlewares.WithLogging(logger, postJSONHandler).ServeHTTP)
+	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
+	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
+	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{
 			Addr:    p.Address,
-			Handler: mux,
+			Handler: middlewares.WithCompressing(mux),
 		},
 		params: p,
+		logger: logger,
 	}
 }
 
@@ -59,7 +69,7 @@ func (s *Server) Run(ctx context.Context) {
 
 		err := s.server.ListenAndServe()
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal(e.Wrap(op, "failed to start server", err))
+			s.logger.Errorln(e.WrapError(op, "failed to start server", err))
 		}
 
 	}()
@@ -73,5 +83,5 @@ func (s *Server) Run(ctx context.Context) {
 		log.Println(err)
 	}
 
-	log.Println(op, " server gracefully stopped")
+	s.logger.Infoln(op, " server gracefully stopped")
 }
