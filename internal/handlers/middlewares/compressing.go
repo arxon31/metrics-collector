@@ -12,6 +12,7 @@ import (
 var compressibleTypes = map[string]bool{
 	"text/html":        true,
 	"application/json": true,
+	"html/text":        true,
 }
 
 type compressWriter struct {

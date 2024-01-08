@@ -27,7 +27,7 @@ func (h *GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Type", "html/text")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(fmt.Sprintf("%v", value)))
 

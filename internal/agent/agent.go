@@ -273,6 +273,9 @@ func (a *Agent) reportGaugeMetricGZIP(name metric.Name, value metric.Gauge) erro
 	}
 
 	compressedMetricJSON, err := compress(metricJSON)
+	if err != nil {
+		return e.WrapError(op, "failed to compress metric", err)
+	}
 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
@@ -310,6 +313,9 @@ func (a *Agent) reportCounterMetricGZIP(name metric.Name, value metric.Counter) 
 	}
 
 	compressedMetric, err := compress(metricJSON)
+	if err != nil {
+		return e.WrapError(op, "failed to compress metric", err)
+	}
 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
