@@ -56,7 +56,7 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	return &Server{
 		server: &http.Server{
 			Addr:    p.Address,
-			Handler: mux,
+			Handler: middlewares.WithCompressing(mux),
 		},
 		params: p,
 		logger: logger,

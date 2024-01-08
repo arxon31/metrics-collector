@@ -3,6 +3,9 @@ package e
 import "fmt"
 
 func WrapError(op, msg string, err error) error {
+	if err == nil {
+		return fmt.Errorf("%s: %s", op, msg)
+	}
 	return fmt.Errorf("%s: %s due to error: %w", op, msg, err)
 }
 

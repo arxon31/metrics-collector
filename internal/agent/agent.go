@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -118,16 +119,30 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 			for k, val := range a.metrics.Gauges {
 				if err := a.reportGaugeMetricJSON(k, val); err != nil {
 					log.Println(err)
-					continue
+				}
+				log.Printf("reported metric JSON %s with value %f\n", k, val)
+				if err := a.reportGaugeMetric(k, val); err != nil {
+					log.Println(err)
 				}
 				log.Printf("reported metric %s with value %f\n", k, val)
+				if err := a.reportGaugeMetricGZIP(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric GZIP %s with value %f\n", k, val)
 			}
 			for k, val := range a.metrics.Counters {
 				if err := a.reportCounterMetricJSON(k, val); err != nil {
 					log.Println(err)
-					continue
+				}
+				log.Printf("reported metric JSON %s with value %v\n", k, val)
+				if err := a.reportCounterMetric(k, val); err != nil {
+					log.Println(err)
 				}
 				log.Printf("reported metric %s with value %v\n", k, val)
+				if err := a.reportCounterMetricGZIP(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric GZIP %s with value %v\n", k, val)
 			}
 		}
 	}
@@ -188,13 +203,16 @@ func (a *Agent) reportGaugeMetricJSON(name metric.Name, value metric.Gauge) erro
 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
-	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJSON))
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(metricJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.client.Do(req)
 	if err != nil {
 		return e.WrapError(op, "failed to report metric", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return e.WrapError(op, "failed to report metric", err)
+		return e.WrapError(op, "status code is not OK", nil)
 	}
 	return nil
 
@@ -217,15 +235,100 @@ func (a *Agent) reportCounterMetricJSON(name metric.Name, value metric.Counter) 
 
 	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
 
-	resp, err := a.client.Post(endpoint, "application/json", bytes.NewBuffer(metricJSON))
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(metricJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.client.Do(req)
 	if err != nil {
 		return e.WrapError(op, "failed to report metric", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return e.WrapError(op, "failed to report metric", err)
+		return e.WrapError(op, "status code is not OK", err)
 	}
 
 	a.metrics.Counters[name] = 0
 	return nil
+}
+
+func (a *Agent) reportGaugeMetricGZIP(name metric.Name, value metric.Gauge) error {
+	const op = "agent.reportGaugeMetricGZIP()"
+
+	var m metric.MetricDTO
+
+	m.ID = string(name)
+	m.MType = "gauge"
+	val := float64(value)
+	m.Value = &val
+
+	metricJSON, err := json.Marshal(m)
+	if err != nil {
+		return e.WrapError(op, "failed to marshal metric", err)
+	}
+
+	compressedMetricJSON, err := compress(metricJSON)
+
+	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
+
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(compressedMetricJSON))
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return e.WrapError(op, "failed to report metric", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return e.WrapError(op, "status code is not OK", nil)
+	}
+	return nil
+
+}
+
+func (a *Agent) reportCounterMetricGZIP(name metric.Name, value metric.Counter) error {
+	const op = "agent.reportCounterMetricGZIP()"
+
+	var m metric.MetricDTO
+
+	m.ID = string(name)
+	m.MType = "counter"
+	val := int64(value)
+	m.Delta = &val
+
+	metricJSON, err := json.Marshal(m)
+	if err != nil {
+		return e.WrapError(op, "failed to marshal metric", err)
+	}
+
+	compressedMetric, err := compress(metricJSON)
+
+	endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
+
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(compressedMetric))
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return e.WrapError(op, "failed to report metric", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return e.WrapError(op, "status code is not OK", err)
+	}
+
+	a.metrics.Counters[name] = 0
+	return nil
+}
+
+func compress(b []byte) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	gz := gzip.NewWriter(buf)
+
+	_, err := gz.Write(b)
+	if err != nil {
+		return nil, err
+	}
+	gz.Close()
+
+	return buf.Bytes(), nil
 }

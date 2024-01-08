@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/arxon31/metrics-collector/pkg/metric"
+	"log"
 	"net/http"
 )
 
@@ -17,6 +18,7 @@ func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var m metric.MetricDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		log.Println("[BAD]", e.WrapString(op, "failed to decode metric", err))
 		http.Error(w, e.WrapString(op, "failed to decode metric", err), http.StatusBadRequest)
 		return
 	}
@@ -33,6 +35,7 @@ func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
+		log.Println("[BAD]", e.WrapString(op, "unknown metric type", nil))
 		http.Error(w, e.WrapString(op, "unknown metric type", nil), http.StatusBadRequest)
 		return
 	}
