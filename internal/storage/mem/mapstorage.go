@@ -2,6 +2,7 @@ package mem
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/arxon31/metrics-collector/pkg/metric"
@@ -74,5 +75,62 @@ func (s *MapStorage) Values(ctx context.Context) (string, error) {
 	}
 
 	return body.String(), nil
+}
 
+func (s *MapStorage) ValuesJSON(ctx context.Context) (string, error) {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+	var res strings.Builder
+	for name, value := range s.ms.Gauges {
+		val := float64(value)
+		m := metric.MetricDTO{
+			ID:    string(name),
+			MType: "gauge",
+			Value: &val,
+		}
+		metricJSON, err := json.Marshal(m)
+		if err != nil {
+			return "", err
+		}
+		res.WriteString(string(metricJSON))
+		res.WriteString("\n\r")
+	}
+	for name, value := range s.ms.Counters {
+		val := int64(value)
+		m := metric.MetricDTO{
+			ID:    string(name),
+			MType: "counter",
+			Delta: &val,
+		}
+		metricJSON, err := json.Marshal(m)
+		if err != nil {
+			return "", err
+		}
+		res.WriteString(string(metricJSON))
+		res.WriteString("\n\r")
+	}
+	return res.String(), nil
+}
+
+func (s *MapStorage) RestoreFromJSON(ctx context.Context, values string) error {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	metrics := strings.Split(values, "\n\r")
+	for idx, val := range metrics {
+		if idx == len(metrics)-1 {
+			continue
+		}
+		m := metric.MetricDTO{}
+		err := json.Unmarshal([]byte(val), &m)
+		if err != nil {
+			return err
+		}
+		switch m.MType {
+		case "gauge":
+			s.ms.Gauges[metric.Name(m.ID)] = metric.Gauge(*m.Value)
+		case "counter":
+			s.ms.Counters[metric.Name(m.ID)] = metric.Counter(*m.Delta)
+		}
+	}
+	return nil
 }
