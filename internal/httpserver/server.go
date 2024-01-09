@@ -27,7 +27,7 @@ const (
 	shutdownTimeout       = 3 * time.Second
 )
 
-var ErrIsNotFound = errors.New("not found")
+var ErrIsNotFound = errors.New("file not found")
 
 type Server struct {
 	server *http.Server
@@ -79,7 +79,7 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 		err := s.restore(ctx, s.params.FileStoragePath, restorer)
 		if err != nil {
 			if errors.Is(err, ErrIsNotFound) {
-				s.logger.Infoln(e.WrapError(op, "nothing to restore", err))
+				s.logger.Infoln(e.WrapString(op, "nothing to restore", err))
 			} else {
 				s.logger.Errorln(e.WrapError(op, "failed to restore data", err))
 			}
@@ -94,8 +94,9 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 		}
 
 	}()
-
-	go s.dumpRoutine(ctx, dumper)
+	if s.params.FileStoragePath != "" {
+		go s.dumpRoutine(ctx, dumper)
+	}
 
 	<-ctx.Done()
 
@@ -105,10 +106,11 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 	if err := s.server.Shutdown(shutdownCtx); err != nil {
 		log.Println(err)
 	}
-
-	s.logger.Infoln(op, "trying to dump data to file:", s.params.FileStoragePath)
-	if err := s.dump(ctx, s.params.FileStoragePath, dumper); err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
+	if s.params.FileStoragePath != "" {
+		s.logger.Infoln(op, "trying to dump data to file:", s.params.FileStoragePath)
+		if err := s.dump(ctx, s.params.FileStoragePath, dumper); err != nil {
+			s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
+		}
 	}
 
 	s.logger.Infoln(op, " server gracefully stopped")
@@ -123,23 +125,16 @@ func (s *Server) dump(ctx context.Context, path string, dumper Dumper) error {
 
 	// create directory if not exists
 	dir := filepath.Dir(path)
-	myPath, err := os.Getwd()
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to get current path", err))
-		return err
-	}
-	dirPath := filepath.Join(myPath, dir)
-	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		s.logger.Errorln(e.WrapError(op, "failed to create directory", err))
 		return err
 	}
-	fPath := filepath.Join(myPath, path)
-	file, err := os.OpenFile(fPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	defer file.Close()
+	file, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		s.logger.Errorln(e.WrapError(op, "failed to open file", err))
 		return err
 	}
+	defer file.Close()
 	data, err := dumper.ValuesJSON(ctx)
 	if err != nil {
 		s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
@@ -189,22 +184,17 @@ type Restorer interface {
 
 func (s *Server) restore(ctx context.Context, path string, restorer Restorer) error {
 	const op = "httpserver.Server.restore()"
-	// check file existence
-	fPath, err := os.Getwd()
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to get current path", err))
-		return err
-	}
-	if _, err := os.Stat(filepath.Join(fPath, path)); errors.Is(err, os.ErrNotExist) {
-		s.logger.Infoln(e.WrapError(op, "file not found", err))
+
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		s.logger.Infoln(e.WrapString(op, "file not found", err))
 		return ErrIsNotFound
 	}
 	file, err := os.Open(path)
-	defer file.Close()
 	if err != nil {
 		s.logger.Errorln(e.WrapError(op, "failed to open file", err))
 		return err
 	}
+	defer file.Close()
 	data, err := io.ReadAll(file)
 	if err != nil {
 		s.logger.Errorln(e.WrapError(op, "failed to read data", err))
