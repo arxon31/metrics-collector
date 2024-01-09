@@ -1,4 +1,4 @@
-package config
+package agent
 
 import (
 	"flag"
@@ -20,35 +20,15 @@ const (
 	ReportIntervalEnv = "REPORT_INTERVAL"
 )
 
-type ServerConfig struct {
-	Address string `env:"ADDRESS"`
-}
-
-type AgentConfig struct {
+type Config struct {
 	Address        string `env:"ADDRESS"`
 	PollInterval   time.Duration
 	ReportInterval time.Duration
 }
 
-func NewServerConfig() (*ServerConfig, error) {
+func NewAgentConfig() (*Config, error) {
 
-	var config ServerConfig
-
-	if err := env.Parse(&config); err != nil {
-		return &config, err
-	}
-
-	if config.Address == "" {
-		flag.Parse()
-		config.Address = *address
-	}
-
-	return &config, nil
-}
-
-func NewAgentConfig() (*AgentConfig, error) {
-
-	var config AgentConfig
+	var config Config
 
 	if err := env.Parse(&config); err != nil {
 		return &config, err

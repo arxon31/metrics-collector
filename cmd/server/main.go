@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
+	config "github.com/arxon31/metrics-collector/internal/config/server"
+	"github.com/arxon31/metrics-collector/internal/httpserver"
 	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	"go.uber.org/zap"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/arxon31/metrics-collector/internal/config"
-	"github.com/arxon31/metrics-collector/internal/httpserver"
 )
 
 func main() {
@@ -45,7 +44,9 @@ func main() {
 	params := httpserver.Params(*cfg)
 
 	server := httpserver.New(&params, sugared, storage, storage)
-	sugared.Infof("server is listening on %s", params.Address)
+	sugared.Infof("server is listening on %s, with store interval %.1fs, file storage path: %s, restore %t",
+		params.Address, params.StoreInterval.Seconds(), params.FileStoragePath, params.Restore)
 
-	server.Run(ctx)
+	server.Run(ctx, storage, storage)
+
 }
