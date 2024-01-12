@@ -27,30 +27,28 @@ type Config struct {
 }
 
 func NewAgentConfig() (*Config, error) {
-
 	var config Config
 
 	if err := env.Parse(&config); err != nil {
 		return &config, err
 	}
+	flag.Parse()
 
 	if config.Address == "" {
-		flag.Parse()
 		config.Address = *address
 	}
-	pollIntervalString, pollExist := os.LookupEnv(PollIntervalEnv)
 
+	config.PollInterval = time.Duration(*pollInterval) * time.Second
+	pollIntervalString, pollExist := os.LookupEnv(PollIntervalEnv)
 	if pollExist {
 		pollIntervalInt, err := strconv.Atoi(pollIntervalString)
 		if err != nil {
 			return nil, fmt.Errorf("can not parse poll interval due to error: %v", err)
 		}
 		config.PollInterval = time.Duration(pollIntervalInt) * time.Second
-	} else {
-		flag.Parse()
-		config.PollInterval = time.Duration(*pollInterval) * time.Second
 	}
 
+	config.ReportInterval = time.Duration(*reportInterval) * time.Second
 	reportIntervalString, reportExist := os.LookupEnv(ReportIntervalEnv)
 	if reportExist {
 		reportIntervalInt, err := strconv.Atoi(reportIntervalString)
@@ -58,9 +56,6 @@ func NewAgentConfig() (*Config, error) {
 			return nil, fmt.Errorf("can not parse report interval due to error: %v", err)
 		}
 		config.ReportInterval = time.Duration(reportIntervalInt) * time.Second
-	} else {
-		flag.Parse()
-		config.ReportInterval = time.Duration(*reportInterval) * time.Second
 	}
 
 	return &config, nil

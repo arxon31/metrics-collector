@@ -29,46 +29,40 @@ type Config struct {
 }
 
 func NewServerConfig() (*Config, error) {
-
 	var config Config
 
 	if err := env.Parse(&config); err != nil {
 		return &config, err
 	}
 
+	flag.Parse()
+
 	if config.Address == "" {
-		flag.Parse()
 		config.Address = *address
 	}
+
 	if config.FileStoragePath == "" {
-		flag.Parse()
 		config.FileStoragePath = *fileStoragePath
 	}
 
+	config.Restore = *restore
 	restoreString, isRestoreExist := os.LookupEnv(restoreEnv)
-
 	if isRestoreExist {
 		restoreBool, err := strconv.ParseBool(restoreString)
 		if err != nil {
 			return nil, fmt.Errorf("can not parse poll interval due to error: %v", err)
 		}
 		config.Restore = restoreBool
-	} else {
-		flag.Parse()
-		config.Restore = *restore
 	}
 
+	config.StoreInterval = time.Duration(*storeInterval) * time.Second
 	storeIntervalString, isStoreIntervalExist := os.LookupEnv(storeIntervalEnv)
-
 	if isStoreIntervalExist {
 		storeIntervalInt, err := strconv.Atoi(storeIntervalString)
 		if err != nil {
 			return nil, fmt.Errorf("can not parse poll interval due to error: %v", err)
 		}
 		config.StoreInterval = time.Duration(storeIntervalInt) * time.Second
-	} else {
-		flag.Parse()
-		config.StoreInterval = time.Duration(*storeInterval) * time.Second
 	}
 
 	return &config, nil

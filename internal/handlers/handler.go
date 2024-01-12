@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"go.uber.org/zap"
 )
 
 type MetricProvider interface {
@@ -18,6 +19,7 @@ type MetricCollector interface {
 type Handler struct {
 	Storage  MetricCollector
 	Provider MetricProvider
+	Logger   *zap.SugaredLogger
 }
 
 func NewHandler(storage MetricCollector, provider MetricProvider) *Handler {

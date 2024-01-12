@@ -5,14 +5,11 @@ import (
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/handlers"
 	"github.com/arxon31/metrics-collector/internal/handlers/middlewares"
+	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-	"io"
-	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -27,8 +24,6 @@ const (
 	shutdownTimeout       = 3 * time.Second
 )
 
-var ErrIsNotFound = errors.New("file not found")
-
 type Server struct {
 	server *http.Server
 	params *Params
@@ -42,16 +37,24 @@ type Params struct {
 	Restore         bool
 }
 
+type Dumper interface {
+	Dump(ctx context.Context, path string) error
+}
+
+type Restorer interface {
+	Restore(ctx context.Context, path string) error
+}
+
 func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
 
 	mux := chi.NewRouter()
-	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider}
-	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: storage, Provider: provider}
-	getMetricHandler := &handlers.GetMetricHandler{Storage: storage, Provider: provider}
-	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider}
-	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider}
-	postJSONHandler := &handlers.PostJSONMetric{Storage: storage, Provider: provider}
-	getJSONHandler := &handlers.GetJSONMetric{Storage: storage, Provider: provider}
+	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider, Logger: logger}
+	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: storage, Provider: provider, Logger: logger}
+	getMetricHandler := &handlers.GetMetricHandler{Storage: storage, Provider: provider, Logger: logger}
+	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider, Logger: logger}
+	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider, Logger: logger}
+	postJSONHandler := &handlers.PostJSONMetric{Storage: storage, Provider: provider, Logger: logger}
+	getJSONHandler := &handlers.GetJSONMetric{Storage: storage, Provider: provider, Logger: logger}
 
 	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
 	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
@@ -76,9 +79,9 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 
 	if s.params.Restore {
 		s.logger.Infoln(op, "trying to restore data from file:", s.params.FileStoragePath)
-		err := s.restore(ctx, s.params.FileStoragePath, restorer)
+		err := restorer.Restore(ctx, s.params.FileStoragePath)
 		if err != nil {
-			if errors.Is(err, ErrIsNotFound) {
+			if errors.Is(err, mem.ErrIsNotFound) {
 				s.logger.Infoln(e.WrapString(op, "nothing to restore", err))
 			} else {
 				s.logger.Errorln(e.WrapError(op, "failed to restore data", err))
@@ -95,7 +98,27 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 
 	}()
 	if s.params.FileStoragePath != "" {
-		go s.dumpRoutine(ctx, dumper)
+		if s.params.StoreInterval != 0 {
+			timer := time.NewTicker(s.params.StoreInterval)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-timer.C:
+					s.logger.Infoln(op, "trying to dump data to file:", s.params.FileStoragePath)
+					if err := dumper.Dump(ctx, s.params.FileStoragePath); err != nil {
+						s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
+					}
+				}
+			}
+		} else {
+			s.logger.Infoln(op, "synchronously dumping data to file:", s.params.FileStoragePath)
+			for {
+				if err := dumper.Dump(ctx, s.params.FileStoragePath); err != nil {
+					s.logger.Errorln(e.WrapError(op, "failed to dump data synchronously", err))
+				}
+			}
+		}
 	}
 
 	<-ctx.Done()
@@ -104,107 +127,14 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 	defer cancel()
 
 	if err := s.server.Shutdown(shutdownCtx); err != nil {
-		log.Println(err)
+		s.logger.Errorln(e.WrapError(op, "failed to shutdown http server", err))
 	}
 	if s.params.FileStoragePath != "" {
 		s.logger.Infoln(op, "trying to dump data to file:", s.params.FileStoragePath)
-		if err := s.dump(ctx, s.params.FileStoragePath, dumper); err != nil {
+		if err := dumper.Dump(ctx, s.params.FileStoragePath); err != nil {
 			s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
 		}
 	}
 
 	s.logger.Infoln(op, " server gracefully stopped")
-}
-
-type Dumper interface {
-	ValuesJSON(ctx context.Context) (string, error)
-}
-
-func (s *Server) dump(ctx context.Context, path string, dumper Dumper) error {
-	const op = "httpserver.Server.dump()"
-
-	// create directory if not exists
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to create directory", err))
-		return err
-	}
-	file, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to open file", err))
-		return err
-	}
-	defer file.Close()
-	data, err := dumper.ValuesJSON(ctx)
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
-		return err
-	}
-	n, err := file.Write([]byte(data))
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to write data", err))
-		return err
-
-	}
-	if n < len(data) {
-		s.logger.Errorln(e.WrapError(op, "failed to write all data", err))
-		return err
-	}
-	return nil
-}
-
-func (s *Server) dumpRoutine(ctx context.Context, dumper Dumper) {
-	const op = "httpserver.Server.dumpRoutine()"
-	if s.params.StoreInterval != 0 {
-		timer := time.NewTicker(s.params.StoreInterval)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-				s.logger.Infoln(op, "trying to dump data to file:", s.params.FileStoragePath)
-				if err := s.dump(ctx, s.params.FileStoragePath, dumper); err != nil {
-					s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
-				}
-			}
-		}
-	} else {
-		s.logger.Infoln(op, "synchronously dumping data to file:", s.params.FileStoragePath)
-		for {
-			if err := s.dump(ctx, s.params.FileStoragePath, dumper); err != nil {
-				s.logger.Errorln(e.WrapError(op, "failed to dump data synchronously", err))
-			}
-		}
-	}
-}
-
-type Restorer interface {
-	RestoreFromJSON(ctx context.Context, values string) error
-}
-
-func (s *Server) restore(ctx context.Context, path string, restorer Restorer) error {
-	const op = "httpserver.Server.restore()"
-
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		s.logger.Infoln(e.WrapString(op, "file not found", err))
-		return ErrIsNotFound
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to open file", err))
-		return err
-	}
-	defer file.Close()
-	data, err := io.ReadAll(file)
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to read data", err))
-		return err
-
-	}
-	err = restorer.RestoreFromJSON(ctx, string(data))
-	if err != nil {
-		s.logger.Errorln(e.WrapError(op, "failed to restore data", err))
-		return err
-	}
-	return nil
 }
