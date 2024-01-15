@@ -16,10 +16,18 @@ type MetricCollector interface {
 	Count(ctx context.Context, name string, value int64) error
 }
 
+type Pinger interface {
+	Ping() error
+}
+
 type Handler struct {
 	Storage  MetricCollector
 	Provider MetricProvider
 	Logger   *zap.SugaredLogger
+}
+
+type CustomHandler struct {
+	Pinger
 }
 
 func NewHandler(storage MetricCollector, provider MetricProvider) *Handler {
