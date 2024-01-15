@@ -1,6 +1,9 @@
 package handlers
 
-import "context"
+import (
+	"context"
+	"go.uber.org/zap"
+)
 
 type MetricProvider interface {
 	GaugeValue(ctx context.Context, name string) (float64, error)
@@ -16,6 +19,7 @@ type MetricCollector interface {
 type Handler struct {
 	Storage  MetricCollector
 	Provider MetricProvider
+	Logger   *zap.SugaredLogger
 }
 
 func NewHandler(storage MetricCollector, provider MetricProvider) *Handler {

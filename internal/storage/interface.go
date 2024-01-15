@@ -9,9 +9,6 @@ type Storage interface {
 	GaugeValue(ctx context.Context, name string) (float64, error)
 	CounterValue(ctx context.Context, name string) (int64, error)
 	Values(ctx context.Context) (string, error)
-}
-
-// TODO: подумать над реализацией отмены транзакции
-func undo(ctx context.Context) {
-
+	Dump(ctx context.Context, path string) error
+	Restore(ctx context.Context, path string) error
 }

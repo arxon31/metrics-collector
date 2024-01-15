@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	config "github.com/arxon31/metrics-collector/internal/config/agent"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/arxon31/metrics-collector/internal/agent"
-	"github.com/arxon31/metrics-collector/internal/config"
 )
 
 func main() {

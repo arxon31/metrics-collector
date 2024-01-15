@@ -10,6 +10,13 @@ const (
 	CounterCount = 1
 )
 
+type MetricDTO struct {
+	ID    string   `json:"id"`
+	MType string   `json:"type"`
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
+}
+
 type Metrics struct {
 	Gauges   map[Name]Gauge
 	Counters map[Name]Counter
@@ -58,11 +65,11 @@ const (
 
 type Gauge float64
 
-func (*Gauge) GaugeFtomString(value string) (float64, error) {
+func (*Gauge) GaugeFromString(value string) (float64, error) {
 	const op = "metric.Parse(*Gauge)"
 	val, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		return 0, e.Wrap(op, "failed to parse value", err)
+		return 0, e.WrapError(op, "failed to parse value", err)
 	}
 	return val, nil
 }
@@ -73,7 +80,7 @@ func (*Counter) CounterFromString(value string) (int64, error) {
 	const op = "metric.Parse(*Counter)"
 	val, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return 0, e.Wrap(op, "failed to parse value", err)
+		return 0, e.WrapError(op, "failed to parse value", err)
 	}
 	return val, nil
 }
