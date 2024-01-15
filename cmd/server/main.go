@@ -44,8 +44,8 @@ func main() {
 	params := httpserver.Params(*cfg)
 
 	server := httpserver.New(&params, sugared, storage, storage)
-	sugared.Infof("server is listening on %s, with store interval %.1fs, file storage path: %s, restore %t",
-		params.Address, params.StoreInterval.Seconds(), params.FileStoragePath, params.Restore)
+	sugared.Infof("server is listening on %s, with store interval %.1fs, file storage path: %s, restore %t, database_dsn: %s",
+		params.Address, params.StoreInterval.Seconds(), params.FileStoragePath, params.Restore, params.DBString)
 
 	server.Run(ctx, storage, storage)
 
