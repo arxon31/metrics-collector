@@ -14,6 +14,7 @@ var (
 	storeInterval   = flag.Int("i", 300, "store interval")
 	fileStoragePath = flag.String("f", "/tmp/metrics-db.json", "file storage path")
 	restore         = flag.Bool("r", true, "restore from file-db")
+	dbstring        = flag.String("d", "", "database connection string")
 )
 
 const (
@@ -26,6 +27,7 @@ type Config struct {
 	StoreInterval   time.Duration
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	DBString        string `env:"DATABASE_DSN"`
 }
 
 func NewServerConfig() (*Config, error) {
@@ -43,6 +45,9 @@ func NewServerConfig() (*Config, error) {
 
 	if config.FileStoragePath == "" {
 		config.FileStoragePath = *fileStoragePath
+	}
+	if config.DBString == "" {
+		config.DBString = *dbstring
 	}
 
 	config.Restore = *restore
