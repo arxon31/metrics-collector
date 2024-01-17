@@ -50,7 +50,7 @@ type Restorer interface {
 
 func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
 
-	psql := postgres.NewPostgres(p.DBString)
+	psql, _ := postgres.NewPostgres(p.DBString, logger)
 
 	mux := chi.NewRouter()
 	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider, Logger: logger}
