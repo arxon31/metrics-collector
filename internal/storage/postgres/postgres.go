@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	_ "github.com/jackc/pgx/stdlib"
 	"go.uber.org/zap"
 	"strconv"
@@ -31,8 +32,14 @@ func NewPostgres(conn string, logger *zap.SugaredLogger) (*PSQL, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	queryGauges := `CREATE TABLE IF NOT EXISTS gauges(name text primary key, value double precision)`
-	queryCounters := `CREATE TABLE IF NOT EXISTS counters(name text primary key, value int)`
+	queryGauges := `CREATE TABLE IF NOT EXISTS gauges (
+    		name text PRIMARY KEY NOT NULL, 
+    		value DOUBLE PRECISION
+    )`
+	queryCounters := `CREATE TABLE IF NOT EXISTS counters (
+    		name text PRIMARY KEY NOT NULL, 
+    		value INTEGER
+    )`
 
 	_, err = db.ExecContext(ctx, queryGauges)
 	if err != nil {
@@ -56,12 +63,43 @@ func NewPostgres(conn string, logger *zap.SugaredLogger) (*PSQL, error) {
 }
 
 func (s *PSQL) Replace(ctx context.Context, name string, value float64) error {
-	query := `UPDATE gauges SET value=$1 WHERE name=$2;`
-	_, err := s.db.ExecContext(ctx, query, value, name)
+	query := `SELECT value FROM gauges WHERE name=$1;`
+	row := s.db.QueryRowContext(ctx, query, name)
+
+	var val float64
+	err := row.Scan(&val)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			query = `INSERT INTO gauges (name, value) VALUES ($1, $2)`
+			_, err = s.db.ExecContext(ctx, query, name, value)
+			if err != nil {
+				return err
+			}
+			return nil
+		default:
+			return err
+		}
+	}
+
+	query = `UPDATE gauges SET value=$1 WHERE name=$2;`
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	return nil
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, value, name)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 
 }
 func (s *PSQL) Count(ctx context.Context, name string, value int64) error {
@@ -101,7 +139,7 @@ func (s *PSQL) GaugeValue(ctx context.Context, name string) (float64, error) {
 	var val float64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, err
+		return 0, mem.ErrIsNotFound
 	}
 	return val, nil
 }
@@ -112,7 +150,7 @@ func (s *PSQL) CounterValue(ctx context.Context, name string) (int64, error) {
 	var val int64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, err
+		return 0, mem.ErrIsNotFound
 	}
 	return val, nil
 }

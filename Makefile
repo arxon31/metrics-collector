@@ -4,7 +4,7 @@ TEMP_FILE=/tmp/metrics.json
 DATABASE_DSN=postgres://postgres:metrics@localhost:5432/metrics?sslmode=disable
 
 
-all: build vet iter1 iter2 iter3 iter4 iter5 iter6 iter7 iter8 iter9 iter10 iter11
+all: build vet iter1 iter2 iter3 iter4 iter5 iter6 iter7 iter8 iter9 iter10 iter11 iter12
 build:
 	go build -C cmd/agent -o agent
 	go build -C cmd/server -o server
@@ -78,6 +78,8 @@ iter9:
             -server-port=$(SERVER_PORT) \
             -source-path=.
 iter10:
+	docker run --rm -d --name=metricsDB -e=POSTGRES_PASSWORD=metrics -e=POSTGRES_DB=metrics -p 5432:5432 postgres
+	sleep 2
 	SERVER_PORT=$(SERVER_PORT)
 	ADDRESS="localhost:$(SERVER_PORT)"
 	TEMP_FILE=$(TEMP_FILE)
@@ -87,7 +89,10 @@ iter10:
             -database-dsn=$(DATABASE_DSN) \
             -server-port=$(SERVER_PORT) \
             -source-path=.
+	docker stop metricsDB
 iter11:
+	docker run --rm -d --name=metricsDB -e=POSTGRES_PASSWORD=metrics -e=POSTGRES_DB=metrics -p 5432:5432 postgres
+	sleep 2
 	SERVER_PORT=$(SERVER_PORT)
 	ADDRESS="localhost:$(SERVER_PORT)"
 	TEMP_FILE=$(TEMP_FILE)
@@ -97,3 +102,17 @@ iter11:
 		-database-dsn=$(DATABASE_DSN) \
 		-server-port=$(SERVER_PORT) \
 		-source-path=.
+	docker stop metricsDB
+iter12:
+	docker run --rm -d --name=metricsDB -e=POSTGRES_PASSWORD=metrics -e=POSTGRES_DB=metrics -p 5432:5432 postgres
+	sleep 2
+	SERVER_PORT=$(SERVER_PORT)
+	ADDRESS="localhost:$(SERVER_PORT)"
+	TEMP_FILE=$(TEMP_FILE)
+	./metricstest-darwin-arm64 -test.v -test.run=^TestIteration12$ \
+		-agent-binary-path=cmd/agent/agent \
+		-binary-path=cmd/server/server \
+		-database-dsn=$(DATABASE_DSN) \
+		-server-port=$(SERVER_PORT) \
+		-source-path=.
+	docker stop metricsDB

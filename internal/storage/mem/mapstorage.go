@@ -188,3 +188,7 @@ func (s *MapStorage) fromJSON(ctx context.Context, values string) error {
 	}
 	return nil
 }
+
+func (s *MapStorage) Ping() error {
+	return nil
+}

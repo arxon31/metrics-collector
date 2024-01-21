@@ -6,7 +6,6 @@ import (
 	"github.com/arxon31/metrics-collector/internal/handlers"
 	"github.com/arxon31/metrics-collector/internal/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/internal/storage/mem"
-	"github.com/arxon31/metrics-collector/internal/storage/postgres"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -21,6 +20,7 @@ const (
 	getMetricPath         = "/value/{type}/{name}"
 	getMetricsPath        = "/"
 	postJSONPath          = "/update/"
+	postJSONBatch         = "/updates/"
 	getJSONPath           = "/value/"
 	pingPath              = "/ping"
 	shutdownTimeout       = 3 * time.Second
@@ -48,9 +48,7 @@ type Restorer interface {
 	Restore(ctx context.Context, path string) error
 }
 
-func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
-
-	psql, _ := postgres.NewPostgres(p.DBString, logger)
+func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider, pinger handlers.Pinger) *Server {
 
 	mux := chi.NewRouter()
 	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider, Logger: logger}
@@ -60,7 +58,8 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider, Logger: logger}
 	postJSONHandler := &handlers.PostJSONMetric{Storage: storage, Provider: provider, Logger: logger}
 	getJSONHandler := &handlers.GetJSONMetric{Storage: storage, Provider: provider, Logger: logger}
-	pingHandler := &handlers.Ping{Pinger: psql}
+	pingHandler := &handlers.Ping{Pinger: pinger}
+	postBatchJSON := &handlers.PostJSONBatch{Storage: storage, Provider: provider, Logger: logger}
 
 	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
 	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
@@ -70,6 +69,7 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
 	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
 	mux.Get(pingPath, middlewares.WithLogging(logger, pingHandler).ServeHTTP)
+	mux.Post(postJSONBatch, middlewares.WithLogging(logger, postBatchJSON).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{

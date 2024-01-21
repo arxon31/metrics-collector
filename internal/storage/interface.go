@@ -15,6 +15,8 @@ type Storage interface {
 	Values(ctx context.Context) (string, error)
 	Dump(ctx context.Context, path string) error
 	Restore(ctx context.Context, path string) error
+
+	Ping() error
 }
 
 func New(dsn string, logger *zap.SugaredLogger) (Storage, error) {
