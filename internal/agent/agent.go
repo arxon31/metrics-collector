@@ -118,36 +118,12 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 		case <-reportTicker.C:
 			err := a.reportMetricsBatch()
 			if err != nil {
+				err = retry(3, func() error {
+					return a.reportMetricsBatch()
+				})
 				log.Println(err)
 			}
-			//for k, val := range a.metrics.Gauges {
-			//	if err := a.reportGaugeMetricJSON(k, val); err != nil {
-			//		log.Println(err)
-			//	}
-			//	log.Printf("reported metric JSON %s with value %f\n", k, val)
-			//	if err := a.reportGaugeMetric(k, val); err != nil {
-			//		log.Println(err)
-			//	}
-			//	log.Printf("reported metric %s with value %f\n", k, val)
-			//	if err := a.reportGaugeMetricGZIP(k, val); err != nil {
-			//		log.Println(err)
-			//	}
-			//	log.Printf("reported metric GZIP %s with value %f\n", k, val)
-			//}
-			//for k, val := range a.metrics.Counters {
-			//	if err := a.reportCounterMetricJSON(k, val); err != nil {
-			//		log.Println(err)
-			//	}
-			//	log.Printf("reported metric JSON %s with value %v\n", k, val)
-			//	if err := a.reportCounterMetric(k, val); err != nil {
-			//		log.Println(err)
-			//	}
-			//	log.Printf("reported metric %s with value %v\n", k, val)
-			//	if err := a.reportCounterMetricGZIP(k, val); err != nil {
-			//		log.Println(err)
-			//	}
-			//	log.Printf("reported metric GZIP %s with value %v\n", k, val)
-			//}
+
 		}
 	}
 
@@ -409,4 +385,19 @@ func compress(b []byte) ([]byte, error) {
 	gz.Close()
 
 	return buf.Bytes(), nil
+}
+
+func retry(attempts int, f func() error) (err error) {
+	sleep := 1 * time.Second
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			time.Sleep(sleep)
+			sleep += 2 * time.Second
+		}
+		err = f()
+		if err == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }

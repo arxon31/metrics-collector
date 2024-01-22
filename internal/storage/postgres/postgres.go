@@ -17,6 +17,12 @@ type PSQL struct {
 	logger *zap.SugaredLogger
 }
 
+type RetryableError struct {
+	err        error
+	Timer      time.Time
+	RetryCount int
+}
+
 func NewPostgres(conn string, logger *zap.SugaredLogger) (*PSQL, error) {
 
 	db, err := sql.Open("pgx", conn)

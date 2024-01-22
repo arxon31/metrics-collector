@@ -116,3 +116,16 @@ iter12:
 		-server-port=$(SERVER_PORT) \
 		-source-path=.
 	docker stop metricsDB
+iter13:
+	docker run --rm -d --name=metricsDB -e=POSTGRES_PASSWORD=metrics -e=POSTGRES_DB=metrics -p 5432:5432 postgres
+	sleep 2
+	SERVER_PORT=$(SERVER_PORT)
+	ADDRESS="localhost:$(SERVER_PORT)"
+	TEMP_FILE=$(TEMP_FILE)
+	./metricstest-darwin-arm64 -test.v -test.run=^TestIteration13$ \
+		-agent-binary-path=cmd/agent/agent \
+		-binary-path=cmd/server/server \
+		-database-dsn=$(DATABASE_DSN) \
+		-server-port=$(SERVER_PORT) \
+		-source-path=.
+	docker stop metricsDB
