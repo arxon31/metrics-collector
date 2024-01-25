@@ -20,7 +20,9 @@ const (
 	getMetricPath         = "/value/{type}/{name}"
 	getMetricsPath        = "/"
 	postJSONPath          = "/update/"
+	postJSONBatch         = "/updates/"
 	getJSONPath           = "/value/"
+	pingPath              = "/ping"
 	shutdownTimeout       = 3 * time.Second
 )
 
@@ -35,6 +37,7 @@ type Params struct {
 	StoreInterval   time.Duration
 	FileStoragePath string
 	Restore         bool
+	DBString        string
 }
 
 type Dumper interface {
@@ -45,7 +48,7 @@ type Restorer interface {
 	Restore(ctx context.Context, path string) error
 }
 
-func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider) *Server {
+func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider, pinger handlers.Pinger) *Server {
 
 	mux := chi.NewRouter()
 	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider, Logger: logger}
@@ -55,6 +58,8 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider, Logger: logger}
 	postJSONHandler := &handlers.PostJSONMetric{Storage: storage, Provider: provider, Logger: logger}
 	getJSONHandler := &handlers.GetJSONMetric{Storage: storage, Provider: provider, Logger: logger}
+	pingHandler := &handlers.Ping{Pinger: pinger}
+	postBatchJSON := &handlers.PostJSONBatch{Storage: storage, Provider: provider, Logger: logger}
 
 	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
 	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
@@ -63,6 +68,8 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
 	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
 	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
+	mux.Get(pingPath, middlewares.WithLogging(logger, pingHandler).ServeHTTP)
+	mux.Post(postJSONBatch, middlewares.WithLogging(logger, postBatchJSON).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{

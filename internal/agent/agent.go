@@ -130,6 +130,7 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 				}
 				log.Printf("reported metric GZIP %s with value %f\n", k, val)
 			}
+
 			for k, val := range a.metrics.Counters {
 				if err := a.reportCounterMetricJSON(k, val); err != nil {
 					log.Println(err)
@@ -144,6 +145,15 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 				}
 				log.Printf("reported metric GZIP %s with value %v\n", k, val)
 			}
+
+			err := a.reportMetricsBatch()
+			if err != nil {
+				err = retry(3, func() error {
+					return a.reportMetricsBatch()
+				})
+				log.Println(err)
+			}
+
 		}
 	}
 
@@ -338,6 +348,62 @@ func (a *Agent) reportCounterMetricGZIP(name metric.Name, value metric.Counter) 
 	return nil
 }
 
+func (a *Agent) reportMetricsBatch() error {
+	const op = "agent.reportMetricsBatch()"
+
+	var metricsBatch []metric.MetricDTO
+	for name, value := range a.metrics.Gauges {
+		var m metric.MetricDTO
+		m.ID = string(name)
+		m.MType = "gauge"
+		val := float64(value)
+		m.Value = &val
+
+		metricsBatch = append(metricsBatch, m)
+	}
+
+	for name, value := range a.metrics.Counters {
+		var m metric.MetricDTO
+		m.ID = string(name)
+		m.MType = "counter"
+		val := int64(value)
+		m.Delta = &val
+
+		metricsBatch = append(metricsBatch, m)
+
+		a.metrics.Counters[name] = 0
+	}
+
+	metricsBatchJSON, err := json.Marshal(metricsBatch)
+	if err != nil {
+		return e.WrapError(op, "failed to marshal metrics", err)
+	}
+
+	compressedMetricsBatch, err := compress(metricsBatchJSON)
+	if err != nil {
+		return e.WrapError(op, "failed to compress metrics", err)
+	}
+
+	endpoint := fmt.Sprintf("http://%s/updates/", a.params.Address)
+
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(compressedMetricsBatch))
+	if err != nil {
+		return e.WrapError(op, "failed to create request", err)
+	}
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return e.WrapError(op, "failed to report metrics", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return e.WrapError(op, "status code is not OK", err)
+	}
+
+	return nil
+}
+
 func compress(b []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	gz := gzip.NewWriter(buf)
@@ -349,4 +415,19 @@ func compress(b []byte) ([]byte, error) {
 	gz.Close()
 
 	return buf.Bytes(), nil
+}
+
+func retry(attempts int, f func() error) (err error) {
+	sleep := 1 * time.Second
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			time.Sleep(sleep)
+			sleep += 2 * time.Second
+		}
+		err = f()
+		if err == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }
