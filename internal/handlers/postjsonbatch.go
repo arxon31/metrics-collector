@@ -23,25 +23,11 @@ func (h *PostJSONBatch) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer r.Body.Close()
-	for _, m := range ms {
-		switch m.MType {
-		case "gauge":
-			if err := h.Storage.Replace(r.Context(), m.ID, *m.Value); err != nil {
-				h.Logger.Errorln("failed to replace metric from batch", err)
-				http.Error(w, e.WrapString(op, "failed to replace metric", err), http.StatusInternalServerError)
-				return
-			}
-		case "counter":
-			if err := h.Storage.Count(r.Context(), m.ID, *m.Delta); err != nil {
-				h.Logger.Errorln("failed to count metric from batch", err)
-				http.Error(w, e.WrapString(op, "failed to count metric", err), http.StatusInternalServerError)
-				return
-			}
-		default:
-			h.Logger.Errorln(e.WrapString(op, "unknown metric type", nil))
-			http.Error(w, e.WrapString(op, "unknown metric type", nil), http.StatusBadRequest)
-			return
-		}
+
+	err := h.Storage.StoreBatch(r.Context(), ms)
+	if err != nil {
+		h.Logger.Errorln(e.WrapString(op, "failed to store batch of metrics", err))
+		http.Error(w, e.WrapString(op, "failed to store batch of metrics", err), http.StatusInternalServerError)
 	}
 
 	resp, err := json.Marshal(ms)

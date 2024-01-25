@@ -4,7 +4,8 @@ TEMP_FILE=/tmp/metrics.json
 DATABASE_DSN=postgres://postgres:metrics@localhost:5432/metrics?sslmode=disable
 
 
-all: build vet iter1 iter2 iter3 iter4 iter5 iter6 iter7 iter8 iter9 iter10 iter11 iter12
+all: build vet iter1 iter2 iter3 iter4 iter5 iter6 iter7 iter8 iter9 iter10 iter11 iter12 iter13
+test: build vet iter11 iter12
 build:
 	go build -C cmd/agent -o agent
 	go build -C cmd/server -o server

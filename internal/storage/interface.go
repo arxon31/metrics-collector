@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/arxon31/metrics-collector/internal/storage/mem"
 	"github.com/arxon31/metrics-collector/internal/storage/postgres"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 	"go.uber.org/zap"
 )
 
@@ -15,6 +16,8 @@ type Storage interface {
 	Values(ctx context.Context) (string, error)
 	Dump(ctx context.Context, path string) error
 	Restore(ctx context.Context, path string) error
+
+	StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
 
 	Ping() error
 }

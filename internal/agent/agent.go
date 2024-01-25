@@ -116,6 +116,36 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 			wg.Done()
 			return
 		case <-reportTicker.C:
+			for k, val := range a.metrics.Gauges {
+				if err := a.reportGaugeMetricJSON(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric JSON %s with value %f\n", k, val)
+				if err := a.reportGaugeMetric(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric %s with value %f\n", k, val)
+				if err := a.reportGaugeMetricGZIP(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric GZIP %s with value %f\n", k, val)
+			}
+
+			for k, val := range a.metrics.Counters {
+				if err := a.reportCounterMetricJSON(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric JSON %s with value %v\n", k, val)
+				if err := a.reportCounterMetric(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric %s with value %v\n", k, val)
+				if err := a.reportCounterMetricGZIP(k, val); err != nil {
+					log.Println(err)
+				}
+				log.Printf("reported metric GZIP %s with value %v\n", k, val)
+			}
+
 			err := a.reportMetricsBatch()
 			if err != nil {
 				err = retry(3, func() error {
