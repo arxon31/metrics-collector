@@ -13,6 +13,7 @@ var (
 	address        = flag.String("a", "localhost:8080", "server address")
 	pollInterval   = flag.Int("p", 2, "agent poll interval")
 	reportInterval = flag.Int("r", 10, "agent report interval")
+	hashKey        = flag.String("k", "", "key to hash all sending data")
 )
 
 const (
@@ -24,6 +25,7 @@ type Config struct {
 	Address        string `env:"ADDRESS"`
 	PollInterval   time.Duration
 	ReportInterval time.Duration
+	HashKey        string `env:"KEY"`
 }
 
 func NewAgentConfig() (*Config, error) {
@@ -36,6 +38,9 @@ func NewAgentConfig() (*Config, error) {
 
 	if config.Address == "" {
 		config.Address = *address
+	}
+	if config.HashKey == "" {
+		config.HashKey = *hashKey
 	}
 
 	config.PollInterval = time.Duration(*pollInterval) * time.Second
