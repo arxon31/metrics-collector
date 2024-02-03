@@ -38,6 +38,7 @@ type Params struct {
 	FileStoragePath string
 	Restore         bool
 	DBString        string
+	HashKey         string
 }
 
 type Dumper interface {
@@ -69,7 +70,7 @@ func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector,
 	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
 	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
 	mux.Get(pingPath, middlewares.WithLogging(logger, pingHandler).ServeHTTP)
-	mux.Post(postJSONBatch, middlewares.WithLogging(logger, postBatchJSON).ServeHTTP)
+	mux.Post(postJSONBatch, middlewares.WithHash(p.HashKey, middlewares.WithLogging(logger, postBatchJSON)).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{

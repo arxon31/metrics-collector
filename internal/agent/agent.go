@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -28,6 +31,7 @@ type Params struct {
 	Address        string
 	PollInterval   time.Duration
 	ReportInterval time.Duration
+	HashKey        string
 }
 
 func New(params *Params) *Agent {
@@ -63,13 +67,13 @@ func (a *Agent) pollMetrics(ctx context.Context, wg *sync.WaitGroup) {
 			wg.Done()
 			return
 		case <-pollTicker.C:
-			a.update()
+			a.updateRuntimeMetrics()
 		}
 	}
 
 }
 
-func (a *Agent) update() {
+func (a *Agent) updateRuntimeMetrics() {
 
 	ms := &runtime.MemStats{}
 	runtime.ReadMemStats(ms)
@@ -391,6 +395,21 @@ func (a *Agent) reportMetricsBatch() error {
 		return e.WrapError(op, "failed to create request", err)
 	}
 	req.Header.Set("Content-Encoding", "gzip")
+
+	if a.params.HashKey != "" {
+		var data []byte
+		_, err := req.Body.Read(data)
+		if err != nil {
+			return e.WrapError(op, "can not read body", err)
+		}
+
+		h := hmac.New(sha256.New, []byte(a.params.HashKey))
+		h.Write(data)
+		sign := h.Sum(nil)
+		signBase64 := base64.StdEncoding.EncodeToString(sign)
+
+		req.Header.Add("HashSHA256", signBase64)
+	}
 
 	resp, err := a.client.Do(req)
 	if err != nil {
