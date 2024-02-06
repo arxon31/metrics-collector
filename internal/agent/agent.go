@@ -146,9 +146,9 @@ func (a *Agent) requestGenerator(workers int) chan *http.Request {
 
 	go func() {
 		go a.makeBatchMetricsRequest(requests)
-		go a.makeGaugeMetricRequest(requests)
-		go a.makeCounterMetricRequest(requests)
-		go a.makeMetricsGZIPRequest(requests)
+		//go a.makeGaugeMetricRequest(requests)
+		//go a.makeCounterMetricRequest(requests)
+		//go a.makeMetricsGZIPRequest(requests)
 	}()
 
 	return requests
@@ -160,16 +160,11 @@ func (a *Agent) requestExecutor(ctx context.Context, requests chan *http.Request
 		case <-ctx.Done():
 			return
 		case req := <-requests:
-			_, err := a.client.Do(req)
+			resp, err := a.client.Do(req)
 			if err != nil {
-				retry(retryAttempts, func() error {
-					_, err = a.client.Do(req)
-					if err != nil {
-						return err
-					}
-					return nil
-				})
+				return
 			}
+			resp.Body.Close()
 		}
 	}
 }
@@ -194,6 +189,7 @@ func (a *Agent) makeCounterMetricRequest(requests chan *http.Request) {
 		if err != nil {
 			continue
 		}
+		a.metrics.Counters[name] = 0
 		requests <- req
 	}
 }

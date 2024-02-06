@@ -194,5 +194,19 @@ func (s *MapStorage) Ping() error {
 }
 
 func (s *MapStorage) StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	for _, m := range metrics {
+		if m.MType == "gauge" {
+			metricVal := *m.Value
+			s.ms.Gauges[metric.Name(m.ID)] = metric.Gauge(metricVal)
+		} else {
+			if _, ok := s.ms.Counters[metric.Name(m.ID)]; !ok {
+				s.ms.Counters[metric.Name(m.ID)] = metric.Counter(*m.Delta)
+				return nil
+			}
+			s.ms.Counters[metric.Name(m.ID)] += metric.Counter(*m.Delta)
+		}
+	}
 	return nil
 }
