@@ -32,7 +32,7 @@ func main() {
 
 	params := agent.Params(*cfg)
 	a := agent.New(&params)
-	log.Printf("a is posting to %s with poll interval %.1fs and report interval %.1fs", params.Address, params.PollInterval.Seconds(), params.ReportInterval.Seconds())
-	a.Run(ctx)
+	log.Printf("a is posting to %s with poll interval %.1fs, report interval %.1fs and %d workers", params.Address, params.PollInterval.Seconds(), params.ReportInterval.Seconds(), params.RateLimit)
+	a.Run(ctx, params.RateLimit)
 
 }

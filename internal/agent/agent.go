@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/shirou/gopsutil/mem"
 	"log"
 	"math/rand"
 	"net/http"
@@ -32,6 +33,7 @@ type Params struct {
 	PollInterval   time.Duration
 	ReportInterval time.Duration
 	HashKey        string
+	RateLimit      int
 }
 
 func New(params *Params) *Agent {
@@ -42,13 +44,13 @@ func New(params *Params) *Agent {
 	}
 }
 
-func (a *Agent) Run(ctx context.Context) {
+func (a *Agent) Run(ctx context.Context, workers int) {
 	wg := new(sync.WaitGroup)
 
 	wg.Add(2)
 
 	go a.pollMetrics(ctx, wg)
-	go a.reportMetrics(ctx, wg)
+	go a.reportMetrics(ctx, wg, workers)
 
 	<-ctx.Done()
 
@@ -68,6 +70,7 @@ func (a *Agent) pollMetrics(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		case <-pollTicker.C:
 			a.updateRuntimeMetrics()
+			a.updateUtilMetrics()
 		}
 	}
 
@@ -110,7 +113,15 @@ func (a *Agent) updateRuntimeMetrics() {
 	a.metrics.Gauges[metric.RandomValue] = metric.Gauge(rand.Float64())
 }
 
-func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
+func (a *Agent) updateUtilMetrics() {
+	v, _ := mem.VirtualMemory()
+
+	a.metrics.Gauges[metric.TotalMemory] = metric.Gauge(v.Total)
+	a.metrics.Gauges[metric.FreeMemory] = metric.Gauge(v.Free)
+
+}
+
+func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup, workers int) {
 	reportTicker := time.NewTicker(a.params.ReportInterval)
 	defer reportTicker.Stop()
 
@@ -120,47 +131,171 @@ func (a *Agent) reportMetrics(ctx context.Context, wg *sync.WaitGroup) {
 			wg.Done()
 			return
 		case <-reportTicker.C:
-			for k, val := range a.metrics.Gauges {
-				if err := a.reportGaugeMetricJSON(k, val); err != nil {
-					log.Println(err)
-				}
-				log.Printf("reported metric JSON %s with value %f\n", k, val)
-				if err := a.reportGaugeMetric(k, val); err != nil {
-					log.Println(err)
-				}
-				log.Printf("reported metric %s with value %f\n", k, val)
-				if err := a.reportGaugeMetricGZIP(k, val); err != nil {
-					log.Println(err)
-				}
-				log.Printf("reported metric GZIP %s with value %f\n", k, val)
-			}
-
-			for k, val := range a.metrics.Counters {
-				if err := a.reportCounterMetricJSON(k, val); err != nil {
-					log.Println(err)
-				}
-				log.Printf("reported metric JSON %s with value %v\n", k, val)
-				if err := a.reportCounterMetric(k, val); err != nil {
-					log.Println(err)
-				}
-				log.Printf("reported metric %s with value %v\n", k, val)
-				if err := a.reportCounterMetricGZIP(k, val); err != nil {
-					log.Println(err)
-				}
-				log.Printf("reported metric GZIP %s with value %v\n", k, val)
-			}
-
-			err := a.reportMetricsBatch()
-			if err != nil {
-				err = retry(3, func() error {
-					return a.reportMetricsBatch()
-				})
-				log.Println(err)
+			requests := a.requestGenerator(workers)
+			for i := 1; i <= workers; i++ {
+				go a.requestExecutor(ctx, requests, 3)
 			}
 
 		}
 	}
 
+}
+
+func (a *Agent) requestGenerator(workers int) chan *http.Request {
+	requests := make(chan *http.Request, workers)
+
+	go func() {
+		go a.makeBatchMetricsRequest(requests)
+		go a.makeGaugeMetricRequest(requests)
+		go a.makeCounterMetricRequest(requests)
+		go a.makeMetricsGZIPRequest(requests)
+	}()
+
+	return requests
+}
+
+func (a *Agent) requestExecutor(ctx context.Context, requests chan *http.Request, retryAttempts int) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case req := <-requests:
+			_, err := a.client.Do(req)
+			if err != nil {
+				retry(retryAttempts, func() error {
+					_, err = a.client.Do(req)
+					if err != nil {
+						return err
+					}
+					return nil
+				})
+			}
+		}
+	}
+}
+
+func (a *Agent) makeGaugeMetricRequest(requests chan *http.Request) {
+	for name, value := range a.metrics.Gauges {
+		stringVal := strconv.FormatFloat(float64(value), 'g', -1, 64)
+		urlEndpoint := fmt.Sprintf("http://%s/update/gauge/%s/%s", a.params.Address, string(name), stringVal)
+		req, err := http.NewRequest(http.MethodPost, urlEndpoint, nil)
+		if err != nil {
+			continue
+		}
+		requests <- req
+	}
+}
+
+func (a *Agent) makeCounterMetricRequest(requests chan *http.Request) {
+	for name, value := range a.metrics.Counters {
+		stringVal := strconv.FormatInt(int64(value), 10)
+		urlEndpoint := fmt.Sprintf("http://%s/update/counter/%s/%s", a.params.Address, string(name), stringVal)
+		req, err := http.NewRequest(http.MethodPost, urlEndpoint, nil)
+		if err != nil {
+			continue
+		}
+		requests <- req
+	}
+}
+
+func (a *Agent) makeMetricsGZIPRequest(requests chan *http.Request) {
+	for name, value := range a.metrics.Gauges {
+		var m metric.MetricDTO
+		m.ID = string(name)
+		m.MType = "gauge"
+		val := float64(value)
+		m.Value = &val
+		metricJSON, err := json.Marshal(m)
+		if err != nil {
+			continue
+		}
+		compressedMetric, err := compress(metricJSON)
+		if err != nil {
+			continue
+		}
+
+		endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
+
+		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(compressedMetric))
+		if err != nil {
+			continue
+		}
+		req.Header.Set("Content-Encoding", "gzip")
+		requests <- req
+	}
+	for name, value := range a.metrics.Counters {
+		var m metric.MetricDTO
+		m.ID = string(name)
+		m.MType = "counter"
+		val := int64(value)
+		m.Delta = &val
+		metricJSON, err := json.Marshal(m)
+		if err != nil {
+			continue
+		}
+		compressedMetric, err := compress(metricJSON)
+		if err != nil {
+			continue
+		}
+
+		endpoint := fmt.Sprintf("http://%s/update/", a.params.Address)
+
+		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(compressedMetric))
+		if err != nil {
+			continue
+		}
+		req.Header.Set("Content-Encoding", "gzip")
+		requests <- req
+	}
+
+}
+
+func (a *Agent) makeBatchMetricsRequest(requests chan *http.Request) {
+	var metricsBatch []metric.MetricDTO
+	for name, value := range a.metrics.Gauges {
+		var m metric.MetricDTO
+		m.ID = string(name)
+		m.MType = "gauge"
+		val := float64(value)
+		m.Value = &val
+
+		metricsBatch = append(metricsBatch, m)
+	}
+
+	for name, value := range a.metrics.Counters {
+		var m metric.MetricDTO
+		m.ID = string(name)
+		m.MType = "counter"
+		val := int64(value)
+		m.Delta = &val
+
+		metricsBatch = append(metricsBatch, m)
+
+		a.metrics.Counters[name] = 0
+	}
+
+	metricsBatchJSON, _ := json.Marshal(metricsBatch)
+
+	compressedMetricsBatch, _ := compress(metricsBatchJSON)
+
+	endpoint := fmt.Sprintf("http://%s/updates/", a.params.Address)
+
+	req, _ := http.NewRequest("POST", endpoint, bytes.NewBuffer(compressedMetricsBatch))
+
+	req.Header.Set("Content-Encoding", "gzip")
+
+	if a.params.HashKey != "" {
+		var data []byte
+		req.Body.Read(data)
+
+		h := hmac.New(sha256.New, []byte(a.params.HashKey))
+		h.Write(data)
+		sign := h.Sum(nil)
+		signBase64 := base64.StdEncoding.EncodeToString(sign)
+
+		req.Header.Add("HashSHA256", signBase64)
+	}
+	requests <- req
 }
 
 func (a *Agent) reportGaugeMetric(name metric.Name, value metric.Gauge) error {

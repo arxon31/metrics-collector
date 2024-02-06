@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	GaugeCount   = 28
+	GaugeCount   = 31
 	CounterCount = 1
 )
 
