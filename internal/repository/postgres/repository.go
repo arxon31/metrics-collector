@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/storage/mem"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/arxon31/metrics-collector/pkg/metric"
 	_ "github.com/jackc/pgx/stdlib"
 	"go.uber.org/zap"
@@ -17,12 +17,6 @@ type PSQL struct {
 	db     *sql.DB
 	conn   string
 	logger *zap.SugaredLogger
-}
-
-type RetryableError struct {
-	err        error
-	Timer      time.Time
-	RetryCount int
 }
 
 func NewPostgres(conn string, logger *zap.SugaredLogger) (*PSQL, error) {
@@ -189,7 +183,7 @@ func (s *PSQL) GaugeValue(ctx context.Context, name string) (float64, error) {
 	var val float64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, mem.ErrIsNotFound
+		return 0, memory.ErrIsNotFound
 	}
 	return val, nil
 }
@@ -200,7 +194,7 @@ func (s *PSQL) CounterValue(ctx context.Context, name string) (int64, error) {
 	var val int64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, mem.ErrIsNotFound
+		return 0, memory.ErrIsNotFound
 	}
 	return val, nil
 }

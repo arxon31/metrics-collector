@@ -15,7 +15,6 @@ type MetricProvider interface {
 type MetricCollector interface {
 	Replace(ctx context.Context, name string, value float64) error
 	Count(ctx context.Context, name string, value int64) error
-
 	StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
 }
 
@@ -31,11 +30,4 @@ type Handler struct {
 
 type CustomHandler struct {
 	Pinger
-}
-
-func NewHandler(storage MetricCollector, provider MetricProvider) *Handler {
-	return &Handler{
-		Storage:  storage,
-		Provider: provider,
-	}
 }

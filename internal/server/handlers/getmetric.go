@@ -3,7 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/storage/mem"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"net/http"
@@ -21,7 +21,7 @@ func (h *GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 		value, err := h.Provider.GaugeValue(r.Context(), name)
 		if err != nil {
-			if errors.Is(err, mem.ErrIsNotFound) {
+			if errors.Is(err, memory.ErrIsNotFound) {
 				http.Error(w, e.WrapString(op, "failed to get metric", err), http.StatusNotFound)
 				return
 			}
@@ -34,7 +34,7 @@ func (h *GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		value, err := h.Provider.CounterValue(r.Context(), name)
 		if err != nil {
-			if errors.Is(err, mem.ErrIsNotFound) {
+			if errors.Is(err, memory.ErrIsNotFound) {
 				http.Error(w, e.WrapString(op, "failed to get metric", err), http.StatusNotFound)
 				return
 			}

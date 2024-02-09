@@ -1,9 +1,9 @@
-package storage
+package repository
 
 import (
 	"context"
-	"github.com/arxon31/metrics-collector/internal/storage/mem"
-	"github.com/arxon31/metrics-collector/internal/storage/postgres"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	"github.com/arxon31/metrics-collector/internal/repository/postgres"
 	"github.com/arxon31/metrics-collector/pkg/metric"
 	"go.uber.org/zap"
 )
@@ -16,15 +16,13 @@ type Storage interface {
 	Values(ctx context.Context) (string, error)
 	Dump(ctx context.Context, path string) error
 	Restore(ctx context.Context, path string) error
-
 	StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
-
 	Ping() error
 }
 
 func New(dsn string, logger *zap.SugaredLogger) (Storage, error) {
 	if dsn == "" {
-		return mem.NewMapStorage(), nil
+		return memory.NewMapStorage(), nil
 	} else {
 		psql, err := postgres.NewPostgres(dsn, logger)
 		if err != nil {

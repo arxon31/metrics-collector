@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/handlers"
 	"github.com/arxon31/metrics-collector/internal/handlers/middlewares"
-	"github.com/arxon31/metrics-collector/internal/storage/mem"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -89,7 +89,7 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 		s.logger.Infoln(op, "trying to restore data from file:", s.params.FileStoragePath)
 		err := restorer.Restore(ctx, s.params.FileStoragePath)
 		if err != nil {
-			if errors.Is(err, mem.ErrIsNotFound) {
+			if errors.Is(err, memory.ErrIsNotFound) {
 				s.logger.Infoln(e.WrapString(op, "nothing to restore", err))
 			} else {
 				s.logger.Errorln(e.WrapError(op, "failed to restore data", err))
