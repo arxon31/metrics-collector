@@ -1,4 +1,4 @@
-package request_generator
+package generator
 
 import (
 	"bytes"
@@ -88,15 +88,10 @@ func (g *requestGenerator) errorLogger(done chan struct{}) {
 }
 
 func (g *requestGenerator) makeReport(done chan struct{}) {
-	for {
-		select {
-		case <-done:
-			g.logger.Infof("From making %d requests have %d errors", g.res.all, g.res.errors)
-			g.res.reset()
-			return
-		}
-	}
-
+	<-done
+	g.logger.Infof("From making %d requests have %d errors", g.res.all, g.res.errors)
+	g.res.reset()
+	return
 }
 
 func (g *requestGenerator) makeGaugeMetricRequest(done chan struct{}) {

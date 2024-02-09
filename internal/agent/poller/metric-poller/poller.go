@@ -1,4 +1,4 @@
-package metric_poller
+package poller
 
 import (
 	"github.com/arxon31/metrics-collector/internal/agent/poller"

@@ -1,4 +1,4 @@
-package metric_reporter
+package reporter
 
 import (
 	"fmt"
@@ -62,7 +62,7 @@ func (r *metricReporter) Report(requests chan *http.Request) {
 	go r.errorLogger(done)
 
 	for i := 1; i <= r.config.RateLimit; i++ {
-		go r.requestExecutor(requests, wg)
+		go r.requestExecutor(requests, &wg)
 	}
 	wg.Wait()
 
@@ -81,7 +81,7 @@ func (r *metricReporter) errorLogger(done chan struct{}) {
 	}
 }
 
-func (r *metricReporter) requestExecutor(requests chan *http.Request, wg sync.WaitGroup) {
+func (r *metricReporter) requestExecutor(requests chan *http.Request, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 	r.executeRequest(<-requests)
