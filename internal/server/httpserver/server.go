@@ -3,9 +3,9 @@ package httpserver
 import (
 	"context"
 	"errors"
-	"github.com/arxon31/metrics-collector/internal/handlers"
-	"github.com/arxon31/metrics-collector/internal/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	handlers2 "github.com/arxon31/metrics-collector/internal/server/handlers"
+	middlewares2 "github.com/arxon31/metrics-collector/internal/server/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -49,33 +49,33 @@ type Restorer interface {
 	Restore(ctx context.Context, path string) error
 }
 
-func New(p *Params, logger *zap.SugaredLogger, storage handlers.MetricCollector, provider handlers.MetricProvider, pinger handlers.Pinger) *Server {
+func New(p *Params, logger *zap.SugaredLogger, storage handlers2.MetricCollector, provider handlers2.MetricProvider, pinger handlers2.Pinger) *Server {
 
 	mux := chi.NewRouter()
-	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: storage, Provider: provider, Logger: logger}
-	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: storage, Provider: provider, Logger: logger}
-	getMetricHandler := &handlers.GetMetricHandler{Storage: storage, Provider: provider, Logger: logger}
-	getMetricsHandler := &handlers.GetMetricsHandler{Storage: storage, Provider: provider, Logger: logger}
-	notImplementedHandler := &handlers.NotImplementedHandler{Storage: storage, Provider: provider, Logger: logger}
-	postJSONHandler := &handlers.PostJSONMetric{Storage: storage, Provider: provider, Logger: logger}
-	getJSONHandler := &handlers.GetJSONMetric{Storage: storage, Provider: provider, Logger: logger}
-	pingHandler := &handlers.Ping{Pinger: pinger}
-	postBatchJSON := &handlers.PostJSONBatch{Storage: storage, Provider: provider, Logger: logger}
+	postGaugeMetricHandler := &handlers2.PostGaugeMetric{Storage: storage, Provider: provider, Logger: logger}
+	postCounterMetricHandler := &handlers2.PostCounterMetrics{Storage: storage, Provider: provider, Logger: logger}
+	getMetricHandler := &handlers2.GetMetricHandler{Storage: storage, Provider: provider, Logger: logger}
+	getMetricsHandler := &handlers2.GetMetricsHandler{Storage: storage, Provider: provider, Logger: logger}
+	notImplementedHandler := &handlers2.NotImplementedHandler{Storage: storage, Provider: provider, Logger: logger}
+	postJSONHandler := &handlers2.PostJSONMetric{Storage: storage, Provider: provider, Logger: logger}
+	getJSONHandler := &handlers2.GetJSONMetric{Storage: storage, Provider: provider, Logger: logger}
+	pingHandler := &handlers2.Ping{Pinger: pinger}
+	postBatchJSON := &handlers2.PostJSONBatch{Storage: storage, Provider: provider, Logger: logger}
 
-	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
-	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
-	mux.Post(postUnknownMetricPath, middlewares.WithLogging(logger, notImplementedHandler).ServeHTTP)
-	mux.Post(postJSONPath, middlewares.WithLogging(logger, postJSONHandler).ServeHTTP)
-	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
-	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
-	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
-	mux.Get(pingPath, middlewares.WithLogging(logger, pingHandler).ServeHTTP)
-	mux.Post(postJSONBatch, middlewares.WithHash(p.HashKey, middlewares.WithLogging(logger, postBatchJSON)).ServeHTTP)
+	mux.Post(postGaugeMetricPath, middlewares2.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
+	mux.Post(postCounterMetricPath, middlewares2.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
+	mux.Post(postUnknownMetricPath, middlewares2.WithLogging(logger, notImplementedHandler).ServeHTTP)
+	mux.Post(postJSONPath, middlewares2.WithLogging(logger, postJSONHandler).ServeHTTP)
+	mux.Get(getMetricPath, middlewares2.WithLogging(logger, getMetricHandler).ServeHTTP)
+	mux.Get(getMetricsPath, middlewares2.WithLogging(logger, getMetricsHandler).ServeHTTP)
+	mux.Post(getJSONPath, middlewares2.WithLogging(logger, getJSONHandler).ServeHTTP)
+	mux.Get(pingPath, middlewares2.WithLogging(logger, pingHandler).ServeHTTP)
+	mux.Post(postJSONBatch, middlewares2.WithHash(p.HashKey, middlewares2.WithLogging(logger, postBatchJSON)).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{
 			Addr:    p.Address,
-			Handler: middlewares.WithCompressing(mux),
+			Handler: middlewares2.WithCompressing(mux),
 		},
 		params: p,
 		logger: logger,

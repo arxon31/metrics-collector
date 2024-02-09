@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	config "github.com/arxon31/metrics-collector/internal/config/server"
-	"github.com/arxon31/metrics-collector/internal/httpserver"
-	"github.com/arxon31/metrics-collector/internal/storage"
+	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/server/httpserver"
 	"go.uber.org/zap"
 	"log"
 	"os"
@@ -39,9 +39,9 @@ func main() {
 		sugared.Fatalln("failed to parse config due to error: %v", err)
 	}
 
-	store, err := storage.New(cfg.DBString, sugared)
+	store, err := repository.New(cfg.DBString, sugared)
 	if err != nil {
-		sugared.Fatalln("can not create storage due to error", err)
+		sugared.Fatalln("can not create repository due to error", err)
 	}
 
 	params := httpserver.Params(*cfg)

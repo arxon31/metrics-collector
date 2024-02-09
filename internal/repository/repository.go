@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Storage interface {
+type Repository interface {
 	Replace(ctx context.Context, name string, value float64) error
 	Count(ctx context.Context, name string, value int64) error
 	GaugeValue(ctx context.Context, name string) (float64, error)
@@ -20,7 +20,7 @@ type Storage interface {
 	Ping() error
 }
 
-func New(dsn string, logger *zap.SugaredLogger) (Storage, error) {
+func New(dsn string, logger *zap.SugaredLogger) (Repository, error) {
 	if dsn == "" {
 		return memory.NewMapStorage(), nil
 	} else {
