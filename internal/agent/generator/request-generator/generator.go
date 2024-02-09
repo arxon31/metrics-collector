@@ -91,7 +91,7 @@ func (g *requestGenerator) makeReport(done chan struct{}) {
 	<-done
 	g.logger.Infof("From making %d requests have %d errors", g.res.all, g.res.errors)
 	g.res.reset()
-	return
+
 }
 
 func (g *requestGenerator) makeGaugeMetricRequest(done chan struct{}) {
