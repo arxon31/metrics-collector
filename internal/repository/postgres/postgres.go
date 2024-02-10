@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	"github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/pkg/metric"
 	_ "github.com/jackc/pgx/stdlib"
 	"go.uber.org/zap"
@@ -183,7 +183,7 @@ func (s *PSQL) GaugeValue(ctx context.Context, name string) (float64, error) {
 	var val float64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, memory.ErrIsNotFound
+		return 0, errs.ErrMetricNotFound
 	}
 	return val, nil
 }
@@ -194,7 +194,7 @@ func (s *PSQL) CounterValue(ctx context.Context, name string) (int64, error) {
 	var val int64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, memory.ErrIsNotFound
+		return 0, errs.ErrMetricNotFound
 	}
 	return val, nil
 }

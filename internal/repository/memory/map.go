@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/pkg/metric"
 	"io"
 	"os"
@@ -12,8 +13,6 @@ import (
 	"strings"
 	"sync"
 )
-
-var ErrIsNotFound = errors.New("not found")
 
 type MapStorage struct {
 	rw *sync.RWMutex
@@ -51,7 +50,7 @@ func (s *MapStorage) GaugeValue(_ context.Context, name string) (float64, error)
 	if val, ok := s.ms.Gauges[metric.Name(name)]; ok {
 		return float64(val), nil
 	}
-	return 0, ErrIsNotFound
+	return 0, errs.ErrMetricNotFound
 }
 
 func (s *MapStorage) CounterValue(_ context.Context, name string) (int64, error) {
@@ -60,7 +59,7 @@ func (s *MapStorage) CounterValue(_ context.Context, name string) (int64, error)
 	if val, ok := s.ms.Counters[metric.Name(name)]; ok {
 		return int64(val), nil
 	}
-	return 0, ErrIsNotFound
+	return 0, errs.ErrMetricNotFound
 }
 
 func (s *MapStorage) Values(_ context.Context) (string, error) {
@@ -84,11 +83,11 @@ func (s *MapStorage) Dump(_ context.Context, path string) error {
 	// create directory if not exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
+		return fmt.Errorf("can not mkdir: %w", err)
 	}
 	file, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("can not open dump file: %w", err)
 	}
 	defer file.Close()
 	data, err := s.toJSON()
@@ -124,28 +123,28 @@ func (s *MapStorage) StoreBatch(_ context.Context, metrics []metric.MetricDTO) e
 	return nil
 }
 
-func (s *MapStorage) Ping() error {
-	return nil
-}
-
 func (s *MapStorage) Restore(_ context.Context, path string) error {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		return ErrIsNotFound
+		return errs.ErrFileNotFound
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open restoring file: %w", err)
 	}
 	defer file.Close()
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read restoring file: %w", err)
 
 	}
 	err = s.fromJSON(string(data))
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *MapStorage) Ping() error {
 	return nil
 }
 
@@ -198,7 +197,7 @@ func (s *MapStorage) fromJSON(values string) error {
 	metrics := make([]metric.MetricDTO, metric.CounterCount+metric.GaugeCount)
 	err := json.Unmarshal([]byte(values), &metrics)
 	if err != nil {
-		return err
+		return fmt.Errorf("can not unmarshal to DTO")
 	}
 	for _, m := range metrics {
 		switch m.MType {

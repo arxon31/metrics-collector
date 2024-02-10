@@ -3,34 +3,41 @@ package agent
 import (
 	"context"
 	"github.com/arxon31/metrics-collector/internal/agent/generator"
-	rgen "github.com/arxon31/metrics-collector/internal/agent/generator/request-generator"
 	"github.com/arxon31/metrics-collector/internal/agent/poller"
-	mpoll "github.com/arxon31/metrics-collector/internal/agent/poller/metric-poller"
 	"github.com/arxon31/metrics-collector/internal/agent/reporter"
-	mrep "github.com/arxon31/metrics-collector/internal/agent/reporter/metric-reporter"
 	config "github.com/arxon31/metrics-collector/internal/config/agent"
 	"github.com/arxon31/metrics-collector/pkg/metric"
 	"go.uber.org/zap"
+	"net/http"
 	"time"
 )
 
+type MetricsPoller interface {
+	Poll() *metric.Metrics
+}
+
+type RequestGenerator interface {
+	Generate(*metric.Metrics) chan *http.Request
+}
+
+type MetricsReporter interface {
+	Report(requests chan *http.Request)
+}
+
 type Agent struct {
-	poller          poller.Poller
-	generator       generator.Generator
-	reporter        reporter.Reporter
+	poller          MetricsPoller
+	generator       RequestGenerator
+	reporter        MetricsReporter
 	logger          *zap.SugaredLogger
 	config          *config.Config
 	metricsToReport *metric.Metrics
 }
 
 func New(config *config.Config, logger *zap.SugaredLogger) *Agent {
-	p := mpoll.New(logger)
-	g := rgen.New(config, logger)
-	r := mrep.New(logger, config)
 	return &Agent{
-		poller:    p,
-		generator: g,
-		reporter:  r,
+		poller:    poller.New(logger),
+		generator: generator.New(config, logger),
+		reporter:  reporter.New(logger, config),
 		logger:    logger,
 		config:    config,
 	}

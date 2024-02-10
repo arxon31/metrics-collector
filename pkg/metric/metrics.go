@@ -8,6 +8,8 @@ import (
 const (
 	GaugeCount   = 31
 	CounterCount = 1
+	GaugeType    = "gauge"
+	CounterType  = "counter"
 )
 
 type MetricDTO struct {

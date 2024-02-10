@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	errors2 "github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/arxon31/metrics-collector/pkg/metric"
 	"net/http"
@@ -28,7 +28,7 @@ func (h *GetJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 		val, err := h.Provider.GaugeValue(r.Context(), m.ID)
 		if err != nil {
-			if errors.Is(err, memory.ErrIsNotFound) {
+			if errors.Is(err, errors2.ErrMetricNotFound) {
 				http.Error(w, e.WrapString(op, "metric does not exist", err), http.StatusNotFound)
 			} else {
 				http.Error(w, e.WrapString(op, "failed to get metric", err), http.StatusInternalServerError)
@@ -39,7 +39,7 @@ func (h *GetJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		val, err := h.Provider.CounterValue(r.Context(), m.ID)
 		if err != nil {
-			if errors.Is(err, memory.ErrIsNotFound) {
+			if errors.Is(err, errors2.ErrMetricNotFound) {
 				http.Error(w, e.WrapString(op, "metric does not exist", err), http.StatusNotFound)
 			} else {
 				http.Error(w, e.WrapString(op, "failed to get metric", err), http.StatusInternalServerError)

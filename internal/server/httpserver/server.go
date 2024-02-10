@@ -3,9 +3,11 @@ package httpserver
 import (
 	"context"
 	"errors"
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
-	handlers2 "github.com/arxon31/metrics-collector/internal/server/handlers"
-	middlewares2 "github.com/arxon31/metrics-collector/internal/server/handlers/middlewares"
+	config "github.com/arxon31/metrics-collector/internal/config/server"
+	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/repository/errs"
+	"github.com/arxon31/metrics-collector/internal/server/handlers"
+	"github.com/arxon31/metrics-collector/internal/server/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -27,18 +29,10 @@ const (
 )
 
 type Server struct {
-	server *http.Server
-	params *Params
-	logger *zap.SugaredLogger
-}
-
-type Params struct {
-	Address         string
-	StoreInterval   time.Duration
-	FileStoragePath string
-	Restore         bool
-	DBString        string
-	HashKey         string
+	storage repository.Repository
+	server  *http.Server
+	config  *config.Config
+	logger  *zap.SugaredLogger
 }
 
 type Dumper interface {
@@ -49,47 +43,49 @@ type Restorer interface {
 	Restore(ctx context.Context, path string) error
 }
 
-func New(p *Params, logger *zap.SugaredLogger, storage handlers2.MetricCollector, provider handlers2.MetricProvider, pinger handlers2.Pinger) *Server {
+func New(p *config.Config, logger *zap.SugaredLogger, repo repository.Repository) *Server {
 
 	mux := chi.NewRouter()
-	postGaugeMetricHandler := &handlers2.PostGaugeMetric{Storage: storage, Provider: provider, Logger: logger}
-	postCounterMetricHandler := &handlers2.PostCounterMetrics{Storage: storage, Provider: provider, Logger: logger}
-	getMetricHandler := &handlers2.GetMetricHandler{Storage: storage, Provider: provider, Logger: logger}
-	getMetricsHandler := &handlers2.GetMetricsHandler{Storage: storage, Provider: provider, Logger: logger}
-	notImplementedHandler := &handlers2.NotImplementedHandler{Storage: storage, Provider: provider, Logger: logger}
-	postJSONHandler := &handlers2.PostJSONMetric{Storage: storage, Provider: provider, Logger: logger}
-	getJSONHandler := &handlers2.GetJSONMetric{Storage: storage, Provider: provider, Logger: logger}
-	pingHandler := &handlers2.Ping{Pinger: pinger}
-	postBatchJSON := &handlers2.PostJSONBatch{Storage: storage, Provider: provider, Logger: logger}
 
-	mux.Post(postGaugeMetricPath, middlewares2.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
-	mux.Post(postCounterMetricPath, middlewares2.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
-	mux.Post(postUnknownMetricPath, middlewares2.WithLogging(logger, notImplementedHandler).ServeHTTP)
-	mux.Post(postJSONPath, middlewares2.WithLogging(logger, postJSONHandler).ServeHTTP)
-	mux.Get(getMetricPath, middlewares2.WithLogging(logger, getMetricHandler).ServeHTTP)
-	mux.Get(getMetricsPath, middlewares2.WithLogging(logger, getMetricsHandler).ServeHTTP)
-	mux.Post(getJSONPath, middlewares2.WithLogging(logger, getJSONHandler).ServeHTTP)
-	mux.Get(pingPath, middlewares2.WithLogging(logger, pingHandler).ServeHTTP)
-	mux.Post(postJSONBatch, middlewares2.WithHash(p.HashKey, middlewares2.WithLogging(logger, postBatchJSON)).ServeHTTP)
+	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: repo, Provider: repo, Logger: logger}
+	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: repo, Provider: repo, Logger: logger}
+	getMetricHandler := &handlers.GetMetricHandler{Storage: repo, Provider: repo, Logger: logger}
+	getMetricsHandler := &handlers.GetMetricsHandler{Storage: repo, Provider: repo, Logger: logger}
+	notImplementedHandler := &handlers.NotImplementedHandler{Storage: repo, Provider: repo, Logger: logger}
+	postJSONHandler := &handlers.PostJSONMetric{Storage: repo, Provider: repo, Logger: logger}
+	getJSONHandler := &handlers.GetJSONMetric{Storage: repo, Provider: repo, Logger: logger}
+	pingHandler := &handlers.Ping{Pinger: repo}
+	postBatchJSON := &handlers.PostJSONBatch{Storage: repo, Provider: repo, Logger: logger}
+
+	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
+	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
+	mux.Post(postUnknownMetricPath, middlewares.WithLogging(logger, notImplementedHandler).ServeHTTP)
+	mux.Post(postJSONPath, middlewares.WithLogging(logger, postJSONHandler).ServeHTTP)
+	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
+	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
+	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
+	mux.Get(pingPath, middlewares.WithLogging(logger, pingHandler).ServeHTTP)
+	mux.Post(postJSONBatch, middlewares.WithHash(p.HashKey, middlewares.WithLogging(logger, postBatchJSON)).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{
 			Addr:    p.Address,
-			Handler: middlewares2.WithCompressing(mux),
+			Handler: middlewares.WithCompressing(mux),
 		},
-		params: p,
-		logger: logger,
+		storage: repo,
+		config:  p,
+		logger:  logger,
 	}
 }
 
-func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
+func (s *Server) Run(ctx context.Context) {
 	const op = "httpserver.Server.Run()"
 
-	if s.params.Restore {
-		s.logger.Infoln(op, "trying to restore data from file:", s.params.FileStoragePath)
-		err := restorer.Restore(ctx, s.params.FileStoragePath)
+	if s.config.Restore {
+		s.logger.Infoln(op, "trying to restore data from file:", s.config.FileStoragePath)
+		err := s.storage.Restore(ctx, s.config.FileStoragePath)
 		if err != nil {
-			if errors.Is(err, memory.ErrIsNotFound) {
+			if errors.Is(err, errs.ErrFileNotFound) {
 				s.logger.Infoln(e.WrapString(op, "nothing to restore", err))
 			} else {
 				s.logger.Errorln(e.WrapError(op, "failed to restore data", err))
@@ -105,24 +101,24 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 		}
 
 	}()
-	if s.params.FileStoragePath != "" {
-		if s.params.StoreInterval != 0 {
-			timer := time.NewTicker(s.params.StoreInterval)
+	if s.config.FileStoragePath != "" {
+		if s.config.StoreInterval != 0 {
+			timer := time.NewTicker(s.config.StoreInterval)
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case <-timer.C:
-					s.logger.Infoln(op, "trying to dump data to file:", s.params.FileStoragePath)
-					if err := dumper.Dump(ctx, s.params.FileStoragePath); err != nil {
+					s.logger.Infoln(op, "trying to dump data to file:", s.config.FileStoragePath)
+					if err := s.storage.Dump(ctx, s.config.FileStoragePath); err != nil {
 						s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
 					}
 				}
 			}
 		} else {
-			s.logger.Infoln(op, "synchronously dumping data to file:", s.params.FileStoragePath)
+			s.logger.Infoln(op, "synchronously dumping data to file:", s.config.FileStoragePath)
 			for {
-				if err := dumper.Dump(ctx, s.params.FileStoragePath); err != nil {
+				if err := s.storage.Dump(ctx, s.config.FileStoragePath); err != nil {
 					s.logger.Errorln(e.WrapError(op, "failed to dump data synchronously", err))
 				}
 			}
@@ -137,9 +133,9 @@ func (s *Server) Run(ctx context.Context, restorer Restorer, dumper Dumper) {
 	if err := s.server.Shutdown(shutdownCtx); err != nil {
 		s.logger.Errorln(e.WrapError(op, "failed to shutdown http server", err))
 	}
-	if s.params.FileStoragePath != "" {
-		s.logger.Infoln(op, "trying to dump data to file:", s.params.FileStoragePath)
-		if err := dumper.Dump(ctx, s.params.FileStoragePath); err != nil {
+	if s.config.FileStoragePath != "" {
+		s.logger.Infoln(op, "trying to dump data to file:", s.config.FileStoragePath)
+		if err := s.storage.Dump(ctx, s.config.FileStoragePath); err != nil {
 			s.logger.Errorln(e.WrapError(op, "failed to dump data", err))
 		}
 	}
