@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 	"go.uber.org/zap"
 )
 
@@ -14,6 +15,11 @@ type MetricProvider interface {
 type MetricCollector interface {
 	Replace(ctx context.Context, name string, value float64) error
 	Count(ctx context.Context, name string, value int64) error
+	StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
+}
+
+type Pinger interface {
+	Ping() error
 }
 
 type Handler struct {
@@ -22,9 +28,6 @@ type Handler struct {
 	Logger   *zap.SugaredLogger
 }
 
-func NewHandler(storage MetricCollector, provider MetricProvider) *Handler {
-	return &Handler{
-		Storage:  storage,
-		Provider: provider,
-	}
+type CustomHandler struct {
+	Pinger
 }

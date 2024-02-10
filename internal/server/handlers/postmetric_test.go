@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/arxon31/metrics-collector/internal/storage/mem"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -51,7 +51,7 @@ func TestPostGaugeMetric(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, tt.endpoint, nil)
 			w := httptest.NewRecorder()
 
-			st := mem.NewMapStorage()
+			st := memory.NewMapStorage()
 
 			var postGaugeMetric PostGaugeMetric
 			postGaugeMetric.Storage = st
@@ -113,7 +113,7 @@ func TestPostCounterMetric(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, tt.endpoint, nil)
 			w := httptest.NewRecorder()
 
-			st := mem.NewMapStorage()
+			st := memory.NewMapStorage()
 
 			var postCounterMetric PostCounterMetrics
 			postCounterMetric.Storage = st

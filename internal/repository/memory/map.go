@@ -1,10 +1,11 @@
-package mem
+package memory
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/pkg/metric"
 	"io"
 	"os"
@@ -12,8 +13,6 @@ import (
 	"strings"
 	"sync"
 )
-
-var ErrIsNotFound = errors.New("not found")
 
 type MapStorage struct {
 	rw *sync.RWMutex
@@ -27,14 +26,14 @@ func NewMapStorage() *MapStorage {
 	}
 }
 
-func (s *MapStorage) Replace(ctx context.Context, name string, value float64) error {
+func (s *MapStorage) Replace(_ context.Context, name string, value float64) error {
 	s.rw.Lock()
 	defer s.rw.Unlock()
 	s.ms.Gauges[metric.Name(name)] = metric.Gauge(value)
 	return nil
 }
 
-func (s *MapStorage) Count(ctx context.Context, name string, value int64) error {
+func (s *MapStorage) Count(_ context.Context, name string, value int64) error {
 	s.rw.Lock()
 	defer s.rw.Unlock()
 	if _, ok := s.ms.Counters[metric.Name(name)]; !ok {
@@ -45,53 +44,53 @@ func (s *MapStorage) Count(ctx context.Context, name string, value int64) error 
 	return nil
 }
 
-func (s *MapStorage) GaugeValue(ctx context.Context, name string) (float64, error) {
+func (s *MapStorage) GaugeValue(_ context.Context, name string) (float64, error) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 	if val, ok := s.ms.Gauges[metric.Name(name)]; ok {
 		return float64(val), nil
 	}
-	return 0, ErrIsNotFound
+	return 0, errs.ErrMetricNotFound
 }
 
-func (s *MapStorage) CounterValue(ctx context.Context, name string) (int64, error) {
+func (s *MapStorage) CounterValue(_ context.Context, name string) (int64, error) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 	if val, ok := s.ms.Counters[metric.Name(name)]; ok {
 		return int64(val), nil
 	}
-	return 0, ErrIsNotFound
+	return 0, errs.ErrMetricNotFound
 }
 
-func (s *MapStorage) Values(ctx context.Context) (string, error) {
+func (s *MapStorage) Values(_ context.Context) (string, error) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 
-	var body strings.Builder
+	var res strings.Builder
 
 	for name, value := range s.ms.Gauges {
-		body.WriteString(fmt.Sprintf("%v %v\n", name, value))
+		res.WriteString(fmt.Sprintf("%v %v\n", name, value))
 	}
 
 	for name, value := range s.ms.Counters {
-		body.WriteString(fmt.Sprintf("%v %v\n", name, value))
+		res.WriteString(fmt.Sprintf("%v %v\n", name, value))
 	}
 
-	return body.String(), nil
+	return res.String(), nil
 }
 
-func (s *MapStorage) Dump(ctx context.Context, path string) error {
+func (s *MapStorage) Dump(_ context.Context, path string) error {
 	// create directory if not exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
+		return fmt.Errorf("can not mkdir: %w", err)
 	}
 	file, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("can not open dump file: %w", err)
 	}
 	defer file.Close()
-	data, err := s.toJSON(ctx)
+	data, err := s.toJSON()
 	if err != nil {
 		return err
 	}
@@ -106,7 +105,50 @@ func (s *MapStorage) Dump(ctx context.Context, path string) error {
 	return nil
 }
 
-func (s *MapStorage) toJSON(ctx context.Context) (string, error) {
+func (s *MapStorage) StoreBatch(_ context.Context, metrics []metric.MetricDTO) error {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	for _, m := range metrics {
+		if m.MType == "gauge" {
+			metricVal := *m.Value
+			s.ms.Gauges[metric.Name(m.ID)] = metric.Gauge(metricVal)
+		} else {
+			if _, ok := s.ms.Counters[metric.Name(m.ID)]; !ok {
+				s.ms.Counters[metric.Name(m.ID)] = metric.Counter(*m.Delta)
+				return nil
+			}
+			s.ms.Counters[metric.Name(m.ID)] += metric.Counter(*m.Delta)
+		}
+	}
+	return nil
+}
+
+func (s *MapStorage) Restore(_ context.Context, path string) error {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return errs.ErrFileNotFound
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("failed to open restoring file: %w", err)
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("failed to read restoring file: %w", err)
+
+	}
+	err = s.fromJSON(string(data))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *MapStorage) Ping() error {
+	return nil
+}
+
+func (s *MapStorage) toJSON() (string, error) {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 	var res strings.Builder
@@ -149,34 +191,13 @@ func (s *MapStorage) toJSON(ctx context.Context) (string, error) {
 	return res.String(), nil
 }
 
-func (s *MapStorage) Restore(ctx context.Context, path string) error {
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		return ErrIsNotFound
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return err
-
-	}
-	err = s.fromJSON(ctx, string(data))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *MapStorage) fromJSON(ctx context.Context, values string) error {
+func (s *MapStorage) fromJSON(values string) error {
 	s.rw.Lock()
 	defer s.rw.Unlock()
 	metrics := make([]metric.MetricDTO, metric.CounterCount+metric.GaugeCount)
 	err := json.Unmarshal([]byte(values), &metrics)
 	if err != nil {
-		return err
+		return fmt.Errorf("can not unmarshal to DTO")
 	}
 	for _, m := range metrics {
 		switch m.MType {
