@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/arxon31/metrics-collector/pkg/metric"
-	"net/http"
 )
 
 type PostJSONBatch Handler

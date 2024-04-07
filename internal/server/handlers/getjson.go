@@ -3,10 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+
 	errors2 "github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/arxon31/metrics-collector/pkg/metric"
-	"net/http"
 )
 
 type GetJSONMetric Handler

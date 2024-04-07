@@ -2,11 +2,12 @@ package middlewares
 
 import (
 	"compress/gzip"
-	"github.com/arxon31/metrics-collector/pkg/e"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/arxon31/metrics-collector/pkg/e"
 )
 
 var compressibleTypes = map[string]bool{

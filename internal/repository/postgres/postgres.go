@@ -4,13 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/repository/errs"
-	"github.com/arxon31/metrics-collector/pkg/metric"
-	_ "github.com/jackc/pgx/stdlib"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"time"
+
+	_ "github.com/jackc/pgx/stdlib"
+	"go.uber.org/zap"
+
+	"github.com/arxon31/metrics-collector/internal/repository/errs"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type PSQL struct {

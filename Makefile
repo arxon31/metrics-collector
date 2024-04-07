@@ -10,7 +10,9 @@ build:
 	go build -C cmd/agent -o agent
 	go build -C cmd/server -o server
 vet:
+	goimports -local "github.com/arxon31/metrics-collector" -w /Users/arxon31/go/src/github.com/arxon31/metrics-collector/
 	go vet -vettool=statictest-darwin-arm64 ./...
+
 iter1:
 	./metricstest-darwin-arm64 -test.v -test.run=^TestIteration1$$ \
                 -binary-path=cmd/server/server

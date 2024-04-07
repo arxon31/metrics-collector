@@ -8,14 +8,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	config "github.com/arxon31/metrics-collector/internal/config/agent"
-	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
-	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"sync"
 	"sync/atomic"
+
+	"go.uber.org/zap"
+
+	config "github.com/arxon31/metrics-collector/internal/config/agent"
+	"github.com/arxon31/metrics-collector/pkg/e"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type requestGenerator struct {

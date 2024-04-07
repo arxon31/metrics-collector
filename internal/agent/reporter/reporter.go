@@ -2,12 +2,14 @@ package reporter
 
 import (
 	"fmt"
-	config "github.com/arxon31/metrics-collector/internal/config/agent"
-	"github.com/arxon31/metrics-collector/pkg/e"
-	"go.uber.org/zap"
 	"net/http"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
+
+	config "github.com/arxon31/metrics-collector/internal/config/agent"
+	"github.com/arxon31/metrics-collector/pkg/e"
 )
 
 const retryAttempts = 3

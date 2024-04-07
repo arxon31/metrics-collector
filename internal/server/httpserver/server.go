@@ -3,17 +3,19 @@ package httpserver
 import (
 	"context"
 	"errors"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
+
 	config "github.com/arxon31/metrics-collector/internal/config/server"
 	"github.com/arxon31/metrics-collector/internal/repository"
 	"github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/internal/server/handlers"
 	"github.com/arxon31/metrics-collector/internal/server/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 const (

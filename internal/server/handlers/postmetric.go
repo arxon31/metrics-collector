@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"fmt"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/arxon31/metrics-collector/pkg/metric"
-	"github.com/go-chi/chi/v5"
-	"net/http"
 )
 
 //type MetricCollector interface {

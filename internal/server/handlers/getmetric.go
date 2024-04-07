@@ -3,10 +3,12 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
 	errors2 "github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/go-chi/chi/v5"
-	"net/http"
 )
 
 type GetMetricHandler Handler

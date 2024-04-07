@@ -2,8 +2,9 @@ package memory
 
 import (
 	"context"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 	"testing"
+
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 // BenchmarkMapStorageReplace benchmarks the Replace method of MapStorage.

@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
-	config "github.com/arxon31/metrics-collector/internal/config/server"
-	"github.com/arxon31/metrics-collector/internal/repository"
-	"github.com/arxon31/metrics-collector/internal/server/httpserver"
-	"go.uber.org/zap"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"go.uber.org/zap"
+
+	config "github.com/arxon31/metrics-collector/internal/config/server"
+	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/server/httpserver"
 )
 
 func main() {

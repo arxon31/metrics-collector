@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/arxon31/metrics-collector/internal/agent"
-	config "github.com/arxon31/metrics-collector/internal/config/agent"
-	"go.uber.org/zap"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"go.uber.org/zap"
+
+	"github.com/arxon31/metrics-collector/internal/agent"
+	config "github.com/arxon31/metrics-collector/internal/config/agent"
 )
 
 func main() {

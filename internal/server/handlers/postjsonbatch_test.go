@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
-	"github.com/arxon31/metrics-collector/pkg/metric"
-	"go.uber.org/zap"
 	"net/http/httptest"
 	"testing"
+
+	"go.uber.org/zap"
+
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 // BenchmarkPostJSONBatch benchmarks the ServeHTTP for PostJSONBatch handler

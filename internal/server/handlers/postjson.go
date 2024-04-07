@@ -3,12 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
-	"github.com/jackc/pgerrcode"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgerrcode"
+
+	"github.com/arxon31/metrics-collector/pkg/e"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type PostJSONMetric Handler

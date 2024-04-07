@@ -1,12 +1,14 @@
 package handlers
 
 import (
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
 )
 
 func TestPostGaugeMetric(t *testing.T) {

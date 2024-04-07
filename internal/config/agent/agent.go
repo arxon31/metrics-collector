@@ -3,10 +3,11 @@ package agent
 import (
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env/v10"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/caarlos0/env/v10"
 )
 
 var (

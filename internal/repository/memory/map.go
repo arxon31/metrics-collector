@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/repository/errs"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/arxon31/metrics-collector/internal/repository/errs"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type MapStorage struct {

@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
-	"github.com/arxon31/metrics-collector/pkg/metric"
+
 	"go.uber.org/zap"
+
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type MetricProvider interface {

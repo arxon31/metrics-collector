@@ -1,8 +1,9 @@
 package metric
 
 import (
-	"github.com/arxon31/metrics-collector/pkg/e"
 	"strconv"
+
+	"github.com/arxon31/metrics-collector/pkg/e"
 )
 
 const (

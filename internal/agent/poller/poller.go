@@ -1,12 +1,14 @@
 package poller
 
 import (
-	"github.com/arxon31/metrics-collector/pkg/metric"
-	"github.com/shirou/gopsutil/mem"
-	"go.uber.org/zap"
 	"math/rand"
 	"runtime"
 	"sync"
+
+	"github.com/shirou/gopsutil/mem"
+	"go.uber.org/zap"
+
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type metricPoller struct {
