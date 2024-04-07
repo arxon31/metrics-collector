@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
-	"github.com/arxon31/metrics-collector/pkg/metric"
-	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
+
+	"go.uber.org/zap"
+
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 var repo = memory.NewMapStorage()
@@ -42,13 +44,22 @@ func ExamplePostJSONMetric() {
 	}
 
 	reqGauge := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(gaugeJSON))
+	defer reqGauge.Body.Close()
 	reqCounter := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(counterJSON))
-	w := httptest.NewRecorder()
+	defer reqCounter.Body.Close()
 
-	postJSONHandler.ServeHTTP(w, reqGauge)
-	fmt.Println(w.Result().StatusCode)
-	postJSONHandler.ServeHTTP(w, reqCounter)
-	fmt.Println(w.Result().StatusCode)
+	wG := httptest.NewRecorder()
+	wC := httptest.NewRecorder()
+
+	postJSONHandler.ServeHTTP(wG, reqGauge)
+	resGauge := wG.Result()
+	defer resGauge.Body.Close()
+	postJSONHandler.ServeHTTP(wC, reqCounter)
+	resCounter := wC.Result()
+	defer resCounter.Body.Close()
+
+	fmt.Println(resGauge.StatusCode)
+	fmt.Println(resCounter.StatusCode)
 
 	// Output:
 	// 200
