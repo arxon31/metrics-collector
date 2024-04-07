@@ -10,6 +10,7 @@ import (
 	"github.com/arxon31/metrics-collector/internal/server/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/pkg/e"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -46,6 +47,8 @@ type Restorer interface {
 func New(p *config.Config, logger *zap.SugaredLogger, repo repository.Repository) *Server {
 
 	mux := chi.NewRouter()
+
+	mux.Mount("/debug", middleware.Profiler())
 
 	postGaugeMetricHandler := &handlers.PostGaugeMetric{Storage: repo, Provider: repo, Logger: logger}
 	postCounterMetricHandler := &handlers.PostCounterMetrics{Storage: repo, Provider: repo, Logger: logger}

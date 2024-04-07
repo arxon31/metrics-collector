@@ -14,7 +14,7 @@ func (h *PostJSONBatch) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	var ms []metric.MetricDTO
+	ms := make([]metric.MetricDTO, metric.CounterCount+metric.GaugeCount)
 
 	if err := json.NewDecoder(r.Body).Decode(&ms); err != nil {
 		h.Logger.Errorln(e.WrapString(op, "failed to decode batch of metrics", err))
