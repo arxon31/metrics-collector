@@ -1,3 +1,4 @@
+// Package reporter receives http requests from generator and report them to server
 package reporter
 
 import (
@@ -55,6 +56,7 @@ func New(logger *zap.SugaredLogger, config *config.Config) *metricReporter {
 	}
 }
 
+// Report function asynchronous sending requests to server
 func (r *metricReporter) Report(requests chan *http.Request) {
 	var wg sync.WaitGroup
 

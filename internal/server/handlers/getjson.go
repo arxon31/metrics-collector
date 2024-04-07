@@ -10,6 +10,7 @@ import (
 	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
+// GetJSONMetric implements http.Handler which gets the metric from repository and returns it in JSON
 type GetJSONMetric Handler
 
 func (h *GetJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {

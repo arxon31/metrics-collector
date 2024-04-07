@@ -10,6 +10,7 @@ import (
 
 type PostJSONBatch Handler
 
+// PostJSONBatch implements http.Handler which gets the metrics JSON batch from body and stores them in repository
 func (h *PostJSONBatch) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.PostJSONBatch.ServeHTTP()"
 

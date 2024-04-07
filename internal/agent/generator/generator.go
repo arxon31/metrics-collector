@@ -1,3 +1,4 @@
+// Package generator generates http requests for each metrics update and sends requests to reporter
 package generator
 
 import (
@@ -64,6 +65,9 @@ func New(config *config.Config, logger *zap.SugaredLogger) *requestGenerator {
 	return g
 }
 
+// Generate func generating requests and sending them to generated channel
+// Below you can see all the methods that can be used
+// Now using only makeBatchMetricsRequest which generates request with all metrics in JSON
 func (g *requestGenerator) Generate(metrics *metric.Metrics) chan *http.Request {
 	g.metrics = metrics
 	done := make(chan struct{})

@@ -1,3 +1,4 @@
+// Package agent collects in itself poller generator and reporter and works with poll and report timeout
 package agent
 
 import (
@@ -45,6 +46,7 @@ func New(config *config.Config, logger *zap.SugaredLogger) *Agent {
 	}
 }
 
+// Run function starts agent
 func (a *Agent) Run(ctx context.Context) {
 	pollTimer := time.NewTicker(a.config.PollInterval)
 	defer pollTimer.Stop()

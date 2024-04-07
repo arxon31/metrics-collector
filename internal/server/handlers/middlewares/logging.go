@@ -17,6 +17,7 @@ type responseData struct {
 	size       int
 }
 
+// WithLogging middleware logs requests
 func WithLogging(logger *zap.SugaredLogger, next http.Handler) http.Handler {
 	const op = "middlewares.WithLogging()"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

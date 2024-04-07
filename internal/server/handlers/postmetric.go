@@ -24,7 +24,7 @@ type PostCounterMetrics Handler
 type PostGaugeMetric Handler
 type NotImplementedHandler Handler
 
-// http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
+// PostCounterMetrics implements http.Handler which gets the counter metric from URL and stores it in repository
 func (h *PostCounterMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.PostCounterMetric.ServeHTTP()"
 
@@ -49,7 +49,7 @@ func (h *PostCounterMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
+// PostGaugeMetric implements http.Handler which gets the gauge metric from URL and stores it in repository
 func (h *PostGaugeMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.PostGaugeMetric.ServeHTTP()"
 

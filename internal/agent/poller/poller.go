@@ -1,3 +1,4 @@
+// Package poller polls metrics and returns them to generator for generating http requests
 package poller
 
 import (
@@ -28,6 +29,7 @@ func New(logger *zap.SugaredLogger) *metricPoller {
 
 }
 
+// Poll function polls metrics and returns them in Metrics struct
 func (p *metricPoller) Poll() *metric.Metrics {
 	p.logger.Debug("start polling metrics")
 	wg := new(sync.WaitGroup)

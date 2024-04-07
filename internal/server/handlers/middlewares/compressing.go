@@ -25,6 +25,7 @@ func (w compressWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
+// WithCompressing middleware compresses and decompresses responses
 func WithCompressing(next http.Handler) http.Handler {
 	const op = "middlewares.WithCompressing()"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -15,6 +15,7 @@ import (
 
 type PostJSONMetric Handler
 
+// PostJSONMetric implements http.Handler which gets the metric JSON from body and stores it in repository
 func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.PostJSONMetric.ServeHTTP()"
 

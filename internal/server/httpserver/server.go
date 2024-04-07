@@ -1,3 +1,4 @@
+// Package httpserver provides http server implementation
 package httpserver
 
 import (
@@ -83,6 +84,7 @@ func New(p *config.Config, logger *zap.SugaredLogger, repo repository.Repository
 	}
 }
 
+// Run function starts http server
 func (s *Server) Run(ctx context.Context) {
 	const op = "httpserver.Server.Run()"
 

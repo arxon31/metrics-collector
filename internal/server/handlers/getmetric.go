@@ -13,6 +13,7 @@ import (
 
 type GetMetricHandler Handler
 
+// GetMetricHandler implements http.Handler which gets the metric from repository by name and type and returns it in text/html
 func (h *GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.GetMetricHandler.ServeHTTP()"
 
@@ -54,6 +55,7 @@ func (h *GetMetricHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type GetMetricsHandler Handler
 
+// GetMetricsHandler implements http.Handler which gets all metric from repository and returns it in text/html
 func (h *GetMetricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const op = "handlers.GetMetricsHandler.ServeHTTP()"
 	body, err := h.Provider.Values(r.Context())

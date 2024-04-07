@@ -13,6 +13,7 @@ type hashingResponseWriter struct {
 	key string
 }
 
+// WithHash middleware adds sha256 hash to request body if key is not empty
 func WithHash(key string, next http.Handler) http.Handler {
 	if key == "" {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
