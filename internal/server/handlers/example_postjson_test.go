@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/entity"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"net/http"
 	"net/http/httptest"
 
 	"go.uber.org/zap"
-
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 var repo = memory.NewMapStorage()
@@ -23,15 +22,15 @@ func ExamplePostJSONMetric() {
 
 	exampleGauge := 10.0
 	exampleCounter := int64(10)
-	gaugeMetric := metric.MetricDTO{
-		MType: "gauge",
-		ID:    "example_gauge",
-		Value: &exampleGauge,
+	gaugeMetric := entity.MetricDTO{
+		MetricType: "gauge",
+		Name:       "example_gauge",
+		Gauge:      &exampleGauge,
 	}
-	counterMetric := metric.MetricDTO{
-		MType: "counter",
-		ID:    "example_counter",
-		Delta: &exampleCounter,
+	counterMetric := entity.MetricDTO{
+		MetricType: "counter",
+		Name:       "example_counter",
+		Counter:    &exampleCounter,
 	}
 
 	gaugeJSON, err := json.Marshal(gaugeMetric)

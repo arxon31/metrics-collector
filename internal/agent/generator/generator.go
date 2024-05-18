@@ -9,6 +9,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/agent/config"
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"net/http"
 	"strconv"
 	"sync"
@@ -16,16 +18,14 @@ import (
 
 	"go.uber.org/zap"
 
-	config "github.com/arxon31/metrics-collector/internal/config/agent"
 	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type requestGenerator struct {
 	config            *config.Config
 	logger            *zap.SugaredLogger
 	rw                sync.RWMutex
-	metrics           *metric.Metrics
+	metrics           *entity.Metrics
 	generatedRequests chan *http.Request
 	errChan           chan error
 	res               *result
@@ -68,7 +68,7 @@ func New(config *config.Config, logger *zap.SugaredLogger) *requestGenerator {
 // Generate func generating requests and sending them to generated channel
 // Below you can see all the methods that can be used
 // Now using only makeBatchMetricsRequest which generates request with all metrics in JSON
-func (g *requestGenerator) Generate(metrics *metric.Metrics) chan *http.Request {
+func (g *requestGenerator) Generate(metrics *entity.Metrics) chan *http.Request {
 	g.metrics = metrics
 	done := make(chan struct{})
 
@@ -155,30 +155,30 @@ func (g *requestGenerator) makeMetricsGZIPRequest(done chan struct{}) {
 	for name, value := range g.metrics.Gauges {
 		g.res.incrementAll()
 		val := float64(value)
-		m := metric.MetricDTO{
-			ID:    string(name),
-			MType: "gauge",
-			Value: &val,
+		m := entity.MetricDTO{
+			Name:       string(name),
+			MetricType: "gauge",
+			Gauge:      &val,
 		}
 
 		metricJSON, err := json.Marshal(m)
 		if err != nil {
 			g.res.incrementError()
-			g.errChan <- e.WrapError(op, "can not marshal metric: "+m.ID, err)
+			g.errChan <- e.WrapError(op, "can not marshal metric: "+m.Name, err)
 			continue
 		}
 
 		compressedMetric, err := compress(metricJSON)
 		if err != nil {
 			g.res.incrementError()
-			g.errChan <- e.WrapError(op, "can not compress metric: "+m.ID, err)
+			g.errChan <- e.WrapError(op, "can not compress metric: "+m.Name, err)
 			continue
 		}
 
 		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(compressedMetric))
 		if err != nil {
 			g.res.incrementError()
-			g.errChan <- e.WrapError(op, "can not make GZIP request for metric: "+m.ID, err)
+			g.errChan <- e.WrapError(op, "can not make GZIP request for metric: "+m.Name, err)
 			continue
 		}
 		req.Header.Set("Content-Encoding", "gzip")
@@ -191,29 +191,29 @@ func (g *requestGenerator) makeMetricsGZIPRequest(done chan struct{}) {
 	for name, value := range g.metrics.Counters {
 		g.res.incrementAll()
 		val := int64(value)
-		m := metric.MetricDTO{
-			ID:    string(name),
-			MType: "counter",
-			Delta: &val,
+		m := entity.MetricDTO{
+			Name:       string(name),
+			MetricType: "counter",
+			Counter:    &val,
 		}
 
 		metricJSON, err := json.Marshal(m)
 		if err != nil {
 			g.res.incrementError()
-			g.errChan <- e.WrapError(op, "can not marshal metric: "+m.ID, err)
+			g.errChan <- e.WrapError(op, "can not marshal metric: "+m.Name, err)
 			continue
 		}
 		compressedMetric, err := compress(metricJSON)
 		if err != nil {
 			g.res.incrementError()
-			g.errChan <- e.WrapError(op, "can not compress metric: "+m.ID, err)
+			g.errChan <- e.WrapError(op, "can not compress metric: "+m.Name, err)
 			continue
 		}
 
 		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(compressedMetric))
 		if err != nil {
 			g.res.incrementError()
-			g.errChan <- e.WrapError(op, "can not make GZIP request for metric: "+m.ID, err)
+			g.errChan <- e.WrapError(op, "can not make GZIP request for metric: "+m.Name, err)
 			continue
 		}
 		req.Header.Set("Content-Encoding", "gzip")
@@ -232,14 +232,14 @@ func (g *requestGenerator) makeBatchMetricsRequest(done chan struct{}) {
 
 	defer close(done)
 
-	var metricsBatch []metric.MetricDTO
+	var metricsBatch []entity.MetricDTO
 	g.rw.RLock()
 	for name, value := range g.metrics.Gauges {
 		val := float64(value)
-		m := metric.MetricDTO{
-			ID:    string(name),
-			MType: "gauge",
-			Value: &val,
+		m := entity.MetricDTO{
+			Name:       string(name),
+			MetricType: "gauge",
+			Gauge:      &val,
 		}
 
 		metricsBatch = append(metricsBatch, m)
@@ -248,11 +248,11 @@ func (g *requestGenerator) makeBatchMetricsRequest(done chan struct{}) {
 
 	g.rw.Lock()
 	for name, value := range g.metrics.Counters {
-		var m metric.MetricDTO
-		m.ID = string(name)
-		m.MType = "counter"
+		var m entity.MetricDTO
+		m.Name = string(name)
+		m.MetricType = "counter"
 		val := int64(value)
-		m.Delta = &val
+		m.Counter = &val
 
 		metricsBatch = append(metricsBatch, m)
 

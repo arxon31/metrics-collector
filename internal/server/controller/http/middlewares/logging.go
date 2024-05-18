@@ -7,6 +7,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type loggingMiddleware struct {
+	logger *zap.SugaredLogger
+}
+
 type loggingResponseWriter struct {
 	http.ResponseWriter
 	responseData *responseData
@@ -17,15 +21,17 @@ type responseData struct {
 	size       int
 }
 
-// WithLogging middleware logs requests
-func WithLogging(logger *zap.SugaredLogger, next http.Handler) http.Handler {
-	const op = "middlewares.WithLogging()"
+func NewLoggingMiddleware(logger *zap.SugaredLogger) *loggingMiddleware {
+	return &loggingMiddleware{
+		logger: logger,
+	}
+}
+
+// WithLog middleware logs requests
+func (l *loggingMiddleware) WithLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		respData := &responseData{
-			statusCode: 0,
-			size:       0,
-		}
+		respData := &responseData{}
 		lw := &loggingResponseWriter{
 			ResponseWriter: w,
 			responseData:   respData,
@@ -35,8 +41,7 @@ func WithLogging(logger *zap.SugaredLogger, next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		logger.Infoln(
-			"function", op,
+		l.logger.Infoln(
 			"uri", r.RequestURI,
 			"method", r.Method,
 			"execution_time", duration,

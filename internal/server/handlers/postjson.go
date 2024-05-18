@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"net/http"
 	"strings"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/jackc/pgerrcode"
 
 	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type PostJSONMetric Handler
@@ -21,7 +21,7 @@ func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	var m metric.MetricDTO
+	var m entity.MetricDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		h.Logger.Errorln(e.WrapString(op, "failed to decode metric", err))
@@ -29,12 +29,12 @@ func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	switch m.MType {
+	switch m.MetricType {
 	case "gauge":
-		if err := h.Storage.Replace(r.Context(), m.ID, *m.Value); err != nil {
+		if err := h.Storage.Replace(r.Context(), m.Name, *m.Gauge); err != nil {
 			if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 				err = retry(3, func() error {
-					return h.Storage.Replace(r.Context(), m.ID, *m.Value)
+					return h.Storage.Replace(r.Context(), m.Name, *m.Gauge)
 				})
 				if err != nil {
 					http.Error(w, e.WrapString(op, "failed to replace metric with 3 tries", err), http.StatusInternalServerError)
@@ -45,10 +45,10 @@ func (h *PostJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "counter":
-		if err := h.Storage.Count(r.Context(), m.ID, *m.Delta); err != nil {
+		if err := h.Storage.Count(r.Context(), m.Name, *m.Counter); err != nil {
 			if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 				err = retry(3, func() error {
-					return h.Storage.Count(r.Context(), m.ID, *m.Delta)
+					return h.Storage.Count(r.Context(), m.Name, *m.Counter)
 				})
 				if err != nil {
 					http.Error(w, e.WrapString(op, "failed to replace metric with 3 tries", err), http.StatusInternalServerError)

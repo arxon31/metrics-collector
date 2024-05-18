@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"net/http"
 
 	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type PostJSONBatch Handler
@@ -16,7 +16,7 @@ func (h *PostJSONBatch) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	ms := make([]metric.MetricDTO, metric.CounterCount+metric.GaugeCount)
+	ms := make([]entity.MetricDTO, entity.CounterCount+entity.GaugeCount)
 
 	if err := json.NewDecoder(r.Body).Decode(&ms); err != nil {
 		h.Logger.Errorln(e.WrapString(op, "failed to decode batch of metrics", err))

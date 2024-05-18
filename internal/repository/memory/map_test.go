@@ -2,9 +2,8 @@ package memory
 
 import (
 	"context"
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"testing"
-
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 // BenchmarkMapStorageReplace benchmarks the Replace method of MapStorage.
@@ -41,16 +40,16 @@ func BenchmarkMapStorageStoreBatch(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		b.StartTimer()
-		s.StoreBatch(ctx, []metric.MetricDTO{
+		s.StoreBatch(ctx, []entity.MetricDTO{
 			{
-				MType: "gauge",
-				ID:    "example_gauge",
-				Value: &exampleFloat,
+				MetricType: "gauge",
+				Name:       "example_gauge",
+				Gauge:      &exampleFloat,
 			},
 			{
-				MType: "counter",
-				ID:    "example_counter",
-				Delta: &exampleInt,
+				MetricType: "counter",
+				Name:       "example_counter",
+				Counter:    &exampleInt,
 			},
 		})
 	}

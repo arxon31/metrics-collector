@@ -3,13 +3,13 @@ package reporter
 
 import (
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/agent/config"
 	"net/http"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
-	config "github.com/arxon31/metrics-collector/internal/config/agent"
 	"github.com/arxon31/metrics-collector/pkg/e"
 )
 

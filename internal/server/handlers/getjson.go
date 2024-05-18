@@ -3,11 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"github.com/arxon31/metrics-collector/internal/entity"
+	errors2 "github.com/arxon31/metrics-collector/internal/repository"
 	"net/http"
 
-	errors2 "github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 // GetJSONMetric implements http.Handler which gets the metric from repository and returns it in JSON
@@ -18,7 +18,7 @@ func (h *GetJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	var m metric.MetricDTO
+	var m entity.MetricDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		http.Error(w, e.WrapString(op, "failed to decode metric", err), http.StatusBadRequest)
@@ -26,9 +26,9 @@ func (h *GetJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	switch m.MType {
+	switch m.MetricType {
 	case "gauge":
-		val, err := h.Provider.GaugeValue(r.Context(), m.ID)
+		val, err := h.Provider.GaugeValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, errors2.ErrMetricNotFound) {
 				http.Error(w, e.WrapString(op, "metric does not exist", err), http.StatusNotFound)
@@ -37,9 +37,9 @@ func (h *GetJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		m.Value = &val
+		m.Gauge = &val
 	case "counter":
-		val, err := h.Provider.CounterValue(r.Context(), m.ID)
+		val, err := h.Provider.CounterValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, errors2.ErrMetricNotFound) {
 				http.Error(w, e.WrapString(op, "metric does not exist", err), http.StatusNotFound)
@@ -48,7 +48,7 @@ func (h *GetJSONMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		m.Delta = &val
+		m.Counter = &val
 	default:
 		http.Error(w, e.WrapString(op, "unknown metric type", nil), http.StatusBadRequest)
 		return

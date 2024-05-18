@@ -3,6 +3,8 @@ package agent
 
 import (
 	"context"
+	"github.com/arxon31/metrics-collector/internal/agent/config"
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"net/http"
 	"time"
 
@@ -11,16 +13,14 @@ import (
 	"github.com/arxon31/metrics-collector/internal/agent/generator"
 	"github.com/arxon31/metrics-collector/internal/agent/poller"
 	"github.com/arxon31/metrics-collector/internal/agent/reporter"
-	config "github.com/arxon31/metrics-collector/internal/config/agent"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type MetricsPoller interface {
-	Poll() *metric.Metrics
+	Poll() *entity.Metrics
 }
 
 type RequestGenerator interface {
-	Generate(*metric.Metrics) chan *http.Request
+	Generate(*entity.Metrics) chan *http.Request
 }
 
 type MetricsReporter interface {
@@ -33,7 +33,7 @@ type Agent struct {
 	reporter        MetricsReporter
 	logger          *zap.SugaredLogger
 	config          *config.Config
-	metricsToReport *metric.Metrics
+	metricsToReport *entity.Metrics
 }
 
 func New(config *config.Config, logger *zap.SugaredLogger) *Agent {

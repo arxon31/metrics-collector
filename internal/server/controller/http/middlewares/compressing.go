@@ -16,18 +16,16 @@ var compressibleTypes = map[string]bool{
 	"html/text":        true,
 }
 
-type compressWriter struct {
-	http.ResponseWriter
-	Writer io.Writer
+type compressingMiddleware struct {
 }
 
-func (w compressWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
+func NewCompressingMiddleware() *compressingMiddleware {
+	return &compressingMiddleware{}
 }
 
-// WithCompressing middleware compresses and decompresses responses
-func WithCompressing(next http.Handler) http.Handler {
-	const op = "middlewares.WithCompressing()"
+// WithCompress middleware compresses and decompresses responses
+func (c *compressingMiddleware) WithCompress(next http.Handler) http.Handler {
+	const op = "middlewares.WithCompress()"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := w
 		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") && (compressibleTypes[r.Header.Get("Content-Type")] || compressibleTypes[r.Header.Get("Accept")]) {
@@ -57,4 +55,13 @@ func WithCompressing(next http.Handler) http.Handler {
 
 		next.ServeHTTP(writer, r)
 	})
+}
+
+type compressWriter struct {
+	http.ResponseWriter
+	Writer io.Writer
+}
+
+func (w compressWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
 }

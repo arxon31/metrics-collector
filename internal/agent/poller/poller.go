@@ -2,27 +2,34 @@
 package poller
 
 import (
+	"context"
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"math/rand"
 	"runtime"
 	"sync"
 
 	"github.com/shirou/gopsutil/mem"
 	"go.uber.org/zap"
-
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
-type metricPoller struct {
-	mu      sync.Mutex
-	metrics *metric.Metrics
-	logger  *zap.SugaredLogger
+type repo interface {
+	Replace(ctx context.Context, name string, value float64) error
+	Count(ctx context.Context, name string, value int64) error
 }
 
-func New(logger *zap.SugaredLogger) *metricPoller {
+var errMetricSave = "metric save error"
+
+type metricPoller struct {
+	mu     sync.Mutex
+	repo   repo
+	logger *zap.SugaredLogger
+}
+
+func New(logger *zap.SugaredLogger, repo repo) *metricPoller {
 
 	p := &metricPoller{
-		metrics: metric.New(),
-		logger:  logger,
+		repo:   repo,
+		logger: logger,
 	}
 
 	return p
@@ -30,7 +37,7 @@ func New(logger *zap.SugaredLogger) *metricPoller {
 }
 
 // Poll function polls metrics and returns them in Metrics struct
-func (p *metricPoller) Poll() *metric.Metrics {
+func (p *metricPoller) Poll() {
 	p.logger.Debug("start polling metrics")
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -40,12 +47,12 @@ func (p *metricPoller) Poll() *metric.Metrics {
 
 	wg.Wait()
 	p.logger.Debug("finished polling metrics")
-	return p.metrics
 
 }
 
-func (p *metricPoller) updateRuntimeMetrics(group *sync.WaitGroup) {
-	defer group.Done()
+func (p *metricPoller) updateRuntimeMetrics(wg *sync.WaitGroup) {
+	ctx := context.Background()
+	defer wg.Done()
 	p.logger.Debug("start update runtime metrics")
 
 	ms := &runtime.MemStats{}
@@ -53,50 +60,113 @@ func (p *metricPoller) updateRuntimeMetrics(group *sync.WaitGroup) {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.metrics.Gauges[metric.Alloc] = metric.Gauge(ms.Alloc)
-	p.metrics.Gauges[metric.BuckHashSys] = metric.Gauge(ms.BuckHashSys)
-	p.metrics.Gauges[metric.Frees] = metric.Gauge(ms.Frees)
-	p.metrics.Gauges[metric.GCCPUFraction] = metric.Gauge(ms.GCCPUFraction)
-	p.metrics.Gauges[metric.GCSys] = metric.Gauge(ms.GCSys)
-	p.metrics.Gauges[metric.HeapAlloc] = metric.Gauge(ms.HeapAlloc)
-	p.metrics.Gauges[metric.HeapIdle] = metric.Gauge(ms.HeapIdle)
-	p.metrics.Gauges[metric.HeapInuse] = metric.Gauge(ms.HeapInuse)
-	p.metrics.Gauges[metric.HeapObjects] = metric.Gauge(ms.HeapObjects)
-	p.metrics.Gauges[metric.HeapReleased] = metric.Gauge(ms.HeapReleased)
-	p.metrics.Gauges[metric.HeapSys] = metric.Gauge(ms.HeapSys)
-	p.metrics.Gauges[metric.LastGC] = metric.Gauge(ms.LastGC)
-	p.metrics.Gauges[metric.Lookups] = metric.Gauge(ms.Lookups)
-	p.metrics.Gauges[metric.MCacheInuse] = metric.Gauge(ms.MCacheInuse)
-	p.metrics.Gauges[metric.MCacheSys] = metric.Gauge(ms.MCacheSys)
-	p.metrics.Gauges[metric.MSpanInuse] = metric.Gauge(ms.MSpanInuse)
-	p.metrics.Gauges[metric.MSpanSys] = metric.Gauge(ms.MSpanSys)
-	p.metrics.Gauges[metric.Mallocs] = metric.Gauge(ms.Mallocs)
-	p.metrics.Gauges[metric.NextGC] = metric.Gauge(ms.NextGC)
-	p.metrics.Gauges[metric.NumForcedGC] = metric.Gauge(ms.NumForcedGC)
-	p.metrics.Gauges[metric.NumGC] = metric.Gauge(ms.NumGC)
-	p.metrics.Gauges[metric.OtherSys] = metric.Gauge(ms.OtherSys)
-	p.metrics.Gauges[metric.PauseTotalNs] = metric.Gauge(ms.PauseTotalNs)
-	p.metrics.Gauges[metric.StackInuse] = metric.Gauge(ms.StackInuse)
-	p.metrics.Gauges[metric.StackSys] = metric.Gauge(ms.StackSys)
-	p.metrics.Gauges[metric.Sys] = metric.Gauge(ms.Sys)
-	p.metrics.Gauges[metric.TotalAlloc] = metric.Gauge(ms.TotalAlloc)
+	if err := p.repo.Replace(ctx, entity.Alloc, float64(ms.Alloc)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.BuckHashSys, float64(ms.BuckHashSys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.Frees, float64(ms.Frees)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.GCCPUFraction, ms.GCCPUFraction); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.GCSys, float64(ms.GCSys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.HeapAlloc, float64(ms.HeapAlloc)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.HeapIdle, float64(ms.HeapIdle)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.HeapInuse, float64(ms.HeapInuse)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.HeapObjects, float64(ms.HeapObjects)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.HeapReleased, float64(ms.HeapReleased)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.HeapSys, float64(ms.HeapSys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.LastGC, float64(ms.LastGC)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.Lookups, float64(ms.Lookups)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.MCacheInuse, float64(ms.MCacheInuse)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.MCacheSys, float64(ms.MCacheSys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.MSpanInuse, float64(ms.MSpanInuse)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.MSpanSys, float64(ms.MSpanSys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.Mallocs, float64(ms.Mallocs)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.NextGC, float64(ms.NextGC)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.NumForcedGC, float64(ms.NumForcedGC)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.NumGC, float64(ms.NumGC)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.OtherSys, float64(ms.OtherSys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.PauseTotalNs, float64(ms.PauseTotalNs)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.StackInuse, float64(ms.StackInuse)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.StackSys, float64(ms.StackSys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.Sys, float64(ms.Sys)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.TotalAlloc, float64(ms.TotalAlloc)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
 
-	p.metrics.Counters[metric.PollCount]++
-	p.metrics.Gauges[metric.RandomValue] = metric.Gauge(rand.Float64())
+	if err := p.repo.Count(ctx, entity.PollCount, 1); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(ctx, entity.RandomValue, rand.Float64()); err != nil {
+		p.logger.Error(errMetricSave)
+	}
 
 	p.logger.Debug("successfully updated runtime metrics")
 }
 
-func (p *metricPoller) updateUtilMetrics(group *sync.WaitGroup) {
-	defer group.Done()
+func (p *metricPoller) updateUtilMetrics(wg *sync.WaitGroup) {
+	defer wg.Done()
 	p.logger.Debug("start update util metrics")
 
 	v, _ := mem.VirtualMemory()
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.metrics.Gauges[metric.TotalMemory] = metric.Gauge(v.Total)
-	p.metrics.Gauges[metric.FreeMemory] = metric.Gauge(v.Free)
+
+	if err := p.repo.Replace(context.Background(), entity.TotalMemory, float64(v.Total)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
+	if err := p.repo.Replace(context.Background(), entity.FreeMemory, float64(v.Free)); err != nil {
+		p.logger.Error(errMetricSave)
+	}
 
 	p.logger.Debug("successfully updated util metrics")
 

@@ -1,9 +1,12 @@
 // Package httpserver provides http server implementation
-package httpserver
+package server
 
 import (
 	"context"
 	"errors"
+	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/server/config"
+	middlewares2 "github.com/arxon31/metrics-collector/internal/server/controller/http/middlewares"
 	"net/http"
 	"time"
 
@@ -11,11 +14,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 
-	config "github.com/arxon31/metrics-collector/internal/config/server"
-	"github.com/arxon31/metrics-collector/internal/repository"
-	"github.com/arxon31/metrics-collector/internal/repository/errs"
 	"github.com/arxon31/metrics-collector/internal/server/handlers"
-	"github.com/arxon31/metrics-collector/internal/server/handlers/middlewares"
 	"github.com/arxon31/metrics-collector/pkg/e"
 )
 
@@ -47,7 +46,7 @@ type Restorer interface {
 	Restore(ctx context.Context, path string) error
 }
 
-func New(p *config.Config, logger *zap.SugaredLogger, repo repository.Repository) *Server {
+func New(cfg *config.Config, logger *zap.SugaredLogger, repo repository.Repository) *Server {
 
 	mux := chi.NewRouter()
 
@@ -63,23 +62,23 @@ func New(p *config.Config, logger *zap.SugaredLogger, repo repository.Repository
 	pingHandler := &handlers.Ping{Pinger: repo}
 	postBatchJSON := &handlers.PostJSONBatch{Storage: repo, Provider: repo, Logger: logger}
 
-	mux.Post(postGaugeMetricPath, middlewares.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
-	mux.Post(postCounterMetricPath, middlewares.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
-	mux.Post(postUnknownMetricPath, middlewares.WithLogging(logger, notImplementedHandler).ServeHTTP)
-	mux.Post(postJSONPath, middlewares.WithLogging(logger, postJSONHandler).ServeHTTP)
-	mux.Get(getMetricPath, middlewares.WithLogging(logger, getMetricHandler).ServeHTTP)
-	mux.Get(getMetricsPath, middlewares.WithLogging(logger, getMetricsHandler).ServeHTTP)
-	mux.Post(getJSONPath, middlewares.WithLogging(logger, getJSONHandler).ServeHTTP)
-	mux.Get(pingPath, middlewares.WithLogging(logger, pingHandler).ServeHTTP)
-	mux.Post(postJSONBatch, middlewares.WithHash(p.HashKey, middlewares.WithLogging(logger, postBatchJSON)).ServeHTTP)
+	mux.Post(postGaugeMetricPath, middlewares2.WithLogging(logger, postGaugeMetricHandler).ServeHTTP)
+	mux.Post(postCounterMetricPath, middlewares2.WithLogging(logger, postCounterMetricHandler).ServeHTTP)
+	mux.Post(postUnknownMetricPath, middlewares2.WithLogging(logger, notImplementedHandler).ServeHTTP)
+	mux.Post(postJSONPath, middlewares2.WithLogging(logger, postJSONHandler).ServeHTTP)
+	mux.Get(getMetricPath, middlewares2.WithLogging(logger, getMetricHandler).ServeHTTP)
+	mux.Get(getMetricsPath, middlewares2.WithLogging(logger, getMetricsHandler).ServeHTTP)
+	mux.Post(getJSONPath, middlewares2.WithLogging(logger, getJSONHandler).ServeHTTP)
+	mux.Get(pingPath, middlewares2.WithLogging(logger, pingHandler).ServeHTTP)
+	mux.Post(postJSONBatch, middlewares2.WithHash(cfg.HashKey, middlewares2.WithLogging(logger, postBatchJSON)).ServeHTTP)
 
 	return &Server{
 		server: &http.Server{
-			Addr:    p.Address,
-			Handler: middlewares.WithCompressing(mux),
+			Addr:    cfg.Address,
+			Handler: middlewares2.WithCompressing(mux),
 		},
 		storage: repo,
-		config:  p,
+		config:  cfg,
 		logger:  logger,
 	}
 }
@@ -92,7 +91,7 @@ func (s *Server) Run(ctx context.Context) {
 		s.logger.Infoln(op, "trying to restore data from file:", s.config.FileStoragePath)
 		err := s.storage.Restore(ctx, s.config.FileStoragePath)
 		if err != nil {
-			if errors.Is(err, errs.ErrFileNotFound) {
+			if errors.Is(err, repository.ErrFileNotFound) {
 				s.logger.Infoln(e.WrapString(op, "nothing to restore", err))
 			} else {
 				s.logger.Errorln(e.WrapError(op, "failed to restore data", err))

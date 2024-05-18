@@ -4,9 +4,18 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"log"
 	"net/http"
 )
+
+type hashingMiddleware struct {
+	key string
+}
+
+func NewHashingMiddleware(key string) *hashingMiddleware {
+	return &hashingMiddleware{
+		key: key,
+	}
+}
 
 type hashingResponseWriter struct {
 	http.ResponseWriter
@@ -14,8 +23,8 @@ type hashingResponseWriter struct {
 }
 
 // WithHash middleware adds sha256 hash to request body if key is not empty
-func WithHash(key string, next http.Handler) http.Handler {
-	if key == "" {
+func (h *hashingMiddleware) WithHash(next http.Handler) http.Handler {
+	if h.key == "" {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
 		})
@@ -27,9 +36,8 @@ func WithHash(key string, next http.Handler) http.Handler {
 		if err != nil {
 			http.Error(w, "can not read body", http.StatusInternalServerError)
 		}
-		sign, err := countHash(data, key)
+		sign, err := countHash(data, h.key)
 		if err != nil {
-			log.Println("[ERROR]: can not count hash from body")
 			http.Error(w, "can not count hash for body", http.StatusInternalServerError)
 			return
 		}
@@ -41,7 +49,7 @@ func WithHash(key string, next http.Handler) http.Handler {
 
 		hw := &hashingResponseWriter{
 			ResponseWriter: w,
-			key:            key,
+			key:            h.key,
 		}
 		next.ServeHTTP(hw, r)
 	})

@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
+	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/server"
+	"github.com/arxon31/metrics-collector/internal/server/config"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"go.uber.org/zap"
-
-	config "github.com/arxon31/metrics-collector/internal/config/server"
-	"github.com/arxon31/metrics-collector/internal/repository"
-	"github.com/arxon31/metrics-collector/internal/server/httpserver"
 )
 
 func main() {
@@ -46,7 +45,7 @@ func main() {
 		sugared.Fatalln("can not create repository due to error", err)
 	}
 
-	server := httpserver.New(cfg, sugared, store)
+	server := server.New(cfg, sugared, store)
 	sugared.Infof("server is listening on %s, with store interval %.1fs, file storage path: %s, restore %t, database_dsn: %s",
 		cfg.Address, cfg.StoreInterval.Seconds(), cfg.FileStoragePath, cfg.Restore, cfg.DBString)
 

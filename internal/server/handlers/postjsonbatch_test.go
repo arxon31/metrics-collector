@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/entity"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"net/http/httptest"
 	"testing"
 
 	"go.uber.org/zap"
-
-	"github.com/arxon31/metrics-collector/internal/repository/memory"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 // BenchmarkPostJSONBatch benchmarks the ServeHTTP for PostJSONBatch handler
@@ -23,17 +22,17 @@ func BenchmarkPostJSONBatch(b *testing.B) {
 	postBatchJSON := &PostJSONBatch{Storage: repo, Provider: repo, Logger: sugared}
 	exampleGauge := 10.0
 	exampleCounter := int64(10)
-	metrics := []metric.MetricDTO{}
+	metrics := []entity.MetricDTO{}
 	for i := 0; i < metricCount; i++ {
-		metrics = append(metrics, metric.MetricDTO{
-			ID:    fmt.Sprintf("metric%d", i),
-			MType: "gauge",
-			Value: &exampleGauge,
+		metrics = append(metrics, entity.MetricDTO{
+			Name:       fmt.Sprintf("metric%d", i),
+			MetricType: "gauge",
+			Gauge:      &exampleGauge,
 		})
-		metrics = append(metrics, metric.MetricDTO{
-			ID:    fmt.Sprintf("metric%d", i),
-			MType: "counter",
-			Delta: &exampleCounter,
+		metrics = append(metrics, entity.MetricDTO{
+			Name:       fmt.Sprintf("metric%d", i),
+			MetricType: "counter",
+			Counter:    &exampleCounter,
 		})
 	}
 

@@ -2,10 +2,9 @@ package handlers
 
 import (
 	"context"
+	"github.com/arxon31/metrics-collector/internal/entity"
 
 	"go.uber.org/zap"
-
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 type MetricProvider interface {
@@ -17,7 +16,7 @@ type MetricProvider interface {
 type MetricCollector interface {
 	Replace(ctx context.Context, name string, value float64) error
 	Count(ctx context.Context, name string, value int64) error
-	StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
+	StoreBatch(ctx context.Context, metrics []entity.MetricDTO) error
 }
 
 type Pinger interface {

@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/arxon31/metrics-collector/pkg/e"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
 //type MetricCollector interface {
@@ -31,7 +31,7 @@ func (h *PostCounterMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	value := chi.URLParam(r, "value")
 
-	var counter metric.Counter
+	var counter entity.Counter
 	val, err := counter.CounterFromString(value)
 	if err != nil {
 		errStr := fmt.Sprintf("%v", e.WrapError(op, "value is invalid", err))
@@ -56,7 +56,7 @@ func (h *PostGaugeMetric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	value := chi.URLParam(r, "value")
 
-	var gauge metric.Gauge
+	var gauge entity.Gauge
 
 	val, err := gauge.GaugeFromString(value)
 	if err != nil {
