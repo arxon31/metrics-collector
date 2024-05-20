@@ -19,7 +19,6 @@ import (
 )
 
 func main() {
-
 	os.Exit(run())
 }
 
@@ -54,6 +53,7 @@ func run() int {
 	controller := controllers.NewController(mux, storageService, providerService, pingerService, logger, cfg.HashKey)
 
 	server := httpserver.NewHttpServer(controller, httpserver.WithAddr(cfg.Address))
+	logger.Infof("server listening on: %s", cfg.Address)
 
 	select {
 	case s := <-server.Notify():

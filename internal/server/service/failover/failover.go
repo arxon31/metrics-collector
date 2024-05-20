@@ -3,6 +3,7 @@ package failover
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"go.uber.org/zap"
@@ -42,8 +43,9 @@ func (s *service) Run(ctx context.Context) {
 	if s.isRestore {
 		if err := s.restore(ctx); err != nil {
 			s.logger.Errorln("can not restore data:", err)
+		} else {
+			s.logger.Infoln("restored data from:", s.path)
 		}
-		s.logger.Infoln("restored data from:", s.path)
 	}
 
 	dumper := errgroup.Group{}
@@ -59,13 +61,14 @@ func (s *service) Run(ctx context.Context) {
 	}
 
 	err := dumper.Wait()
-	if err != nil {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		s.logger.Errorln("dumper failed:", err)
 	}
 }
 
 func (s *service) dumpByInterval(ctx context.Context) error {
 	ticker := time.NewTicker(s.dumpInterval)
+	s.logger.Infof("dumping data by interval %s to %s", s.dumpInterval, s.path)
 	defer ticker.Stop()
 	for {
 		select {
@@ -74,6 +77,7 @@ func (s *service) dumpByInterval(ctx context.Context) error {
 				s.logger.Errorln("can not dump data:", err)
 				return err
 			}
+			s.logger.Infoln("TICK:dumped data to:", s.path)
 		case <-ctx.Done():
 			err := s.dump()
 			if err != nil {
@@ -87,6 +91,7 @@ func (s *service) dumpByInterval(ctx context.Context) error {
 }
 
 func (s *service) dumpSynchronously(ctx context.Context) error {
+	s.logger.Infof("dumping data synchronously to %s", s.path)
 	for {
 		select {
 		case <-ctx.Done():

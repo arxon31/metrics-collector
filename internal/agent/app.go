@@ -4,15 +4,14 @@ package agent
 import (
 	"context"
 	"github.com/arxon31/metrics-collector/internal/agent/config"
+	"github.com/arxon31/metrics-collector/internal/agent/service/generator"
+	"github.com/arxon31/metrics-collector/internal/agent/service/poller"
+	"github.com/arxon31/metrics-collector/internal/agent/service/reporter"
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"net/http"
 	"time"
 
 	"go.uber.org/zap"
-
-	"github.com/arxon31/metrics-collector/internal/agent/generator"
-	"github.com/arxon31/metrics-collector/internal/agent/poller"
-	"github.com/arxon31/metrics-collector/internal/agent/reporter"
 )
 
 type MetricsPoller interface {
