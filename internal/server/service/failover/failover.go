@@ -15,7 +15,7 @@ import (
 
 type repo interface {
 	// Metrics returns all metrics values
-	Metrics(ctx context.Context) (string, error)
+	Metrics(ctx context.Context) ([]entity.MetricDTO, error)
 	// StoreBatch stores batch of metrics
 	StoreBatch(ctx context.Context, metrics []entity.MetricDTO) error
 }
@@ -54,7 +54,7 @@ func (s *service) Run(ctx context.Context) {
 		})
 	} else {
 		dumper.Go(func() error {
-			return s.dumpByInterval(ctx)
+			return s.dumpSynchronously(ctx)
 		})
 	}
 
@@ -81,6 +81,7 @@ func (s *service) dumpByInterval(ctx context.Context) error {
 				return err
 			}
 			s.logger.Infoln("dumped data after app shutdown to:", s.path)
+			return ctx.Err()
 		}
 	}
 }
@@ -95,6 +96,7 @@ func (s *service) dumpSynchronously(ctx context.Context) error {
 				return err
 			}
 			s.logger.Infoln("dumped data after app shutdown to:", s.path)
+			return ctx.Err()
 		default:
 			err := s.dump()
 			if err != nil {
@@ -122,9 +124,14 @@ func (s *service) dump() error {
 		return err
 	}
 
-	_, err = file.Write([]byte(metrics))
+	metricsJSON, err := json.Marshal(metrics)
 	if err != nil {
-		return err
+		return fmt.Errorf("can not marshal to JSON: %w", err)
+	}
+
+	_, err = file.Write(metricsJSON)
+	if err != nil {
+		return fmt.Errorf("can not write to file: %w", err)
 	}
 
 	return nil

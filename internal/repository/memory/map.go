@@ -3,7 +3,7 @@ package memory
 import (
 	"context"
 	"github.com/arxon31/metrics-collector/internal/entity"
-	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
 	"sync"
 )
 
@@ -45,7 +45,7 @@ func (s *MapStorage) Gauge(_ context.Context, name string) (float64, error) {
 	if val, ok := s.gauges[name]; ok {
 		return val, nil
 	}
-	return -1, repository.ErrMetricNotFound
+	return -1, repoerr.ErrMetricNotFound
 }
 
 func (s *MapStorage) Counter(_ context.Context, name string) (int64, error) {
@@ -54,7 +54,7 @@ func (s *MapStorage) Counter(_ context.Context, name string) (int64, error) {
 	if val, ok := s.counts[name]; ok {
 		return val, nil
 	}
-	return -1, repository.ErrMetricNotFound
+	return -1, repoerr.ErrMetricNotFound
 }
 
 func (s *MapStorage) Metrics(_ context.Context) ([]entity.MetricDTO, error) {
@@ -100,4 +100,8 @@ func (s *MapStorage) StoreBatch(_ context.Context, metrics []entity.MetricDTO) e
 	}
 	return nil
 
+}
+
+func (s *MapStorage) Ping() error {
+	return nil
 }

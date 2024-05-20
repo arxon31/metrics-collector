@@ -41,7 +41,7 @@ func NewController(handler *chi.Mux, storage storageService, provider providerSe
 	sprint2 := v2.NewController(storage)
 	sprint2.Register(handler)
 
-	sprint3 := v3.NewController(storage, provider)
+	sprint3 := v3.NewController(storage, provider, pinger)
 	sprint3.Register(handler)
 
 	return handler

@@ -33,6 +33,8 @@ func NewHttpServer(handler http.Handler, opts ...Option) *server {
 		opt(&s)
 	}
 
+	s.start()
+
 	return &s
 
 }

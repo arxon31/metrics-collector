@@ -4,12 +4,16 @@ import "github.com/go-resty/resty/v2"
 
 type Option func(c *client)
 
-func (c *client) WithRetries(count int) {
-	c.client.RetryCount = count
+func WithRetries(count int) Option {
+	return func(c *client) {
+		c.client.RetryCount = count
+	}
 }
 
-func (c *client) WithWorkers(count int) {
-	c.numWorkers = count
+func WithWorkers(count int) Option {
+	return func(c *client) {
+		c.numWorkers = count
+	}
 }
 
 func conditionWithUnsuccessfulResponse(response *resty.Response, err error) bool {

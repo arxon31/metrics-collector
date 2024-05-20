@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
 	"github.com/arxon31/metrics-collector/internal/server/config"
 	middlewares2 "github.com/arxon31/metrics-collector/internal/server/controller/http/middlewares"
 	"net/http"
@@ -91,7 +92,7 @@ func (s *Server) Run(ctx context.Context) {
 		s.logger.Infoln(op, "trying to restore data from file:", s.config.FileStoragePath)
 		err := s.storage.Restore(ctx, s.config.FileStoragePath)
 		if err != nil {
-			if errors.Is(err, repository.ErrFileNotFound) {
+			if errors.Is(err, repoerr.ErrFileNotFound) {
 				s.logger.Infoln(e.WrapString(op, "nothing to restore", err))
 			} else {
 				s.logger.Errorln(e.WrapError(op, "failed to restore data", err))

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/arxon31/metrics-collector/internal/entity"
-	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
 	"time"
 
 	_ "github.com/jackc/pgx/stdlib"
@@ -125,7 +125,7 @@ func (s *Postgres) Gauge(ctx context.Context, name string) (float64, error) {
 	var val float64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, repository.ErrMetricNotFound
+		return 0, repoerr.ErrMetricNotFound
 	}
 	return val, nil
 }
@@ -136,7 +136,7 @@ func (s *Postgres) Counter(ctx context.Context, name string) (int64, error) {
 	var val int64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, repository.ErrMetricNotFound
+		return 0, repoerr.ErrMetricNotFound
 	}
 	return val, nil
 }

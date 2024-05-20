@@ -20,7 +20,7 @@ type storageService struct {
 	logger *zap.SugaredLogger
 }
 
-func NewService(repo storage, logger *zap.SugaredLogger) *storageService {
+func NewStorageService(repo storage, logger *zap.SugaredLogger) *storageService {
 	return &storageService{
 		repo:   repo,
 		logger: logger,

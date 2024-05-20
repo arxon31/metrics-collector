@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/arxon31/metrics-collector/internal/entity"
-	repo "github.com/arxon31/metrics-collector/internal/repository"
+	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 )
@@ -88,11 +88,6 @@ func (v *v1) updateCounterMetric(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	value := chi.URLParam(r, "value")
 
-	if name != entity.GaugeType && name != entity.CounterType {
-		http.Error(w, "invalid metric type", http.StatusNotImplemented)
-		return
-	}
-
 	var counter entity.Counter
 	val, err := counter.CounterFromString(value)
 	if err != nil {
@@ -118,11 +113,6 @@ func (v *v1) updateCounterMetric(w http.ResponseWriter, r *http.Request) {
 func (v *v1) updateGaugeMetric(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	value := chi.URLParam(r, "value")
-
-	if name != entity.GaugeType && name != entity.CounterType {
-		http.Error(w, "invalid metric type", http.StatusNotImplemented)
-		return
-	}
 
 	var gauge entity.Gauge
 	val, err := gauge.GaugeFromString(value)

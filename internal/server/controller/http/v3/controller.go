@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/entity"
-	repo "github.com/arxon31/metrics-collector/internal/repository"
+	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 )
@@ -14,6 +14,7 @@ const (
 	saveJSONMetricsURL = "/updates/"
 	getJSONMetricURL   = "/value/"
 	getJSONMetricsURL  = "/"
+	pingDBURL          = "/ping"
 )
 
 type storageService interface {
@@ -26,15 +27,21 @@ type providerService interface {
 	GetMetrics(ctx context.Context) ([]entity.MetricDTO, error)
 }
 
+type pingerService interface {
+	PingDB() error
+}
+
 type v3 struct {
 	store    storageService
 	provider providerService
+	pinger   pingerService
 }
 
-func NewController(store storageService, provider providerService) *v3 {
+func NewController(store storageService, provider providerService, pinger pingerService) *v3 {
 	return &v3{
 		store:    store,
 		provider: provider,
+		pinger:   pinger,
 	}
 }
 
@@ -42,6 +49,7 @@ func (v *v3) Register(h *chi.Mux) {
 	h.Post(saveJSONMetricsURL, v.saveJSONMetrics)
 	h.Post(getJSONMetricURL, v.getJSONMetric)
 	h.Get(getJSONMetricsURL, v.getJSONMetrics)
+	h.Get(pingDBURL, v.pingDB)
 }
 
 func (v *v3) saveJSONMetrics(w http.ResponseWriter, r *http.Request) {
@@ -121,4 +129,14 @@ func (v *v3) getJSONMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
+}
+
+func (v *v3) pingDB(w http.ResponseWriter, r *http.Request) {
+	err := v.pinger.PingDB()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+
 }

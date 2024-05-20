@@ -4,6 +4,9 @@ package repository
 import (
 	"context"
 	"github.com/arxon31/metrics-collector/internal/entity"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	"github.com/arxon31/metrics-collector/internal/repository/postgres"
+	"go.uber.org/zap"
 )
 
 type Repository interface {
@@ -16,7 +19,17 @@ type Repository interface {
 	// Counter returns counter metric value
 	Counter(ctx context.Context, name string) (int64, error)
 	// Metrics returns all metrics values
-	Metrics(ctx context.Context) (string, error)
+	Metrics(ctx context.Context) ([]entity.MetricDTO, error)
 	// StoreBatch stores batch of metrics
 	StoreBatch(ctx context.Context, metrics []entity.MetricDTO) error
+	// Ping checks connection
+	Ping() error
+}
+
+func New(url string, logger *zap.SugaredLogger) (Repository, error) {
+	if url == "" {
+		return memory.NewMapStorage(), nil
+	} else {
+		return postgres.NewPostgres(url, logger)
+	}
 }

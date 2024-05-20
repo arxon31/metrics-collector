@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/arxon31/metrics-collector/internal/entity"
-	errors2 "github.com/arxon31/metrics-collector/internal/repository"
+	errors2 "github.com/arxon31/metrics-collector/internal/repository/repoerr"
 	"net/http"
 
 	"github.com/arxon31/metrics-collector/pkg/e"

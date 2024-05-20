@@ -4,11 +4,15 @@ import "time"
 
 type Option func(s *server)
 
-func (s *server) WithShutdownTimeout(t time.Duration) {
-	s.shutdownTimeout = t
+func WithShutdownTimeout(t time.Duration) Option {
+	return func(s *server) {
+		s.shutdownTimeout = t
+	}
 }
 
-func (s *server) WithAddr(addr string) {
-	s.server.Addr = addr
+func WithAddr(addr string) Option {
+	return func(s *server) {
+		s.server.Addr = addr
+	}
 
 }

@@ -3,7 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
-	errors2 "github.com/arxon31/metrics-collector/internal/repository"
+	errors2 "github.com/arxon31/metrics-collector/internal/repository/repoerr"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
