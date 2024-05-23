@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// BenchmarkMapStorageReplace benchmarks the Replace method of MapStorage.
+// BenchmarkMapStorageReplace benchmarks the StoreGauge method of MapStorage.
 func BenchmarkMapStorageReplace(b *testing.B) {
 	s := NewMapStorage()
 	ctx := context.Background()

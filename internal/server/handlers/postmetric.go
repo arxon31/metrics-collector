@@ -11,7 +11,7 @@ import (
 )
 
 //type MetricCollector interface {
-//	Replace(ctx context.Context, name string, value float64) error
+//	StoreGauge(ctx context.Context, name string, value float64) error
 //	Count(ctx context.Context, name string, value int64) error
 //}
 

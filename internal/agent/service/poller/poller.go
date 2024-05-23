@@ -17,8 +17,8 @@ import (
 )
 
 type pollerRepo interface {
-	Replace(ctx context.Context, name string, value float64) error
-	Count(ctx context.Context, name string, value int64) error
+	StoreGauge(ctx context.Context, name string, value float64) error
+	StoreCounter(ctx context.Context, name string, value int64) error
 }
 
 type generatorRepo interface {
@@ -36,7 +36,7 @@ type compressor interface {
 
 type requestGenerator interface {
 	Generate(ctx context.Context)
-	Requests() chan *resty.Request
+	Requests() <-chan *resty.Request
 }
 
 var errMetricSave = "metric save error"
@@ -48,7 +48,7 @@ type metricPoller struct {
 	logger       *zap.SugaredLogger
 }
 
-func New(logger *zap.SugaredLogger, pRepo pollerRepo, gRepo generatorRepo, cfg *config.Config, hasher hasher, compressor compressor) chan *resty.Request {
+func New(logger *zap.SugaredLogger, pRepo pollerRepo, gRepo generatorRepo, cfg *config.Config, hasher hasher, compressor compressor) *metricPoller {
 
 	p := &metricPoller{
 		gen:    generator.New(cfg.Address, cfg.RateLimit, gRepo, hasher, compressor, logger),
@@ -56,8 +56,11 @@ func New(logger *zap.SugaredLogger, pRepo pollerRepo, gRepo generatorRepo, cfg *
 		logger: logger,
 	}
 
-	return p.gen.Requests()
+	return p
+}
 
+func (p *metricPoller) GetReqChan() <-chan *resty.Request {
+	return p.gen.Requests()
 }
 
 func (p *metricPoller) Run(ctx context.Context) {
@@ -95,92 +98,92 @@ func (p *metricPoller) updateRuntimeMetrics(ctx context.Context, wg *sync.WaitGr
 	ms := &runtime.MemStats{}
 	runtime.ReadMemStats(ms)
 
-	if err := p.repo.Replace(ctx, entity.Alloc, float64(ms.Alloc)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.Alloc, float64(ms.Alloc)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.BuckHashSys, float64(ms.BuckHashSys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.BuckHashSys, float64(ms.BuckHashSys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.Frees, float64(ms.Frees)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.Frees, float64(ms.Frees)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.GCCPUFraction, ms.GCCPUFraction); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.GCCPUFraction, ms.GCCPUFraction); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.GCSys, float64(ms.GCSys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.GCSys, float64(ms.GCSys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.HeapAlloc, float64(ms.HeapAlloc)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.HeapAlloc, float64(ms.HeapAlloc)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.HeapIdle, float64(ms.HeapIdle)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.HeapIdle, float64(ms.HeapIdle)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.HeapInuse, float64(ms.HeapInuse)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.HeapInuse, float64(ms.HeapInuse)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.HeapObjects, float64(ms.HeapObjects)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.HeapObjects, float64(ms.HeapObjects)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.HeapReleased, float64(ms.HeapReleased)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.HeapReleased, float64(ms.HeapReleased)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.HeapSys, float64(ms.HeapSys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.HeapSys, float64(ms.HeapSys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.LastGC, float64(ms.LastGC)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.LastGC, float64(ms.LastGC)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.Lookups, float64(ms.Lookups)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.Lookups, float64(ms.Lookups)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.MCacheInuse, float64(ms.MCacheInuse)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.MCacheInuse, float64(ms.MCacheInuse)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.MCacheSys, float64(ms.MCacheSys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.MCacheSys, float64(ms.MCacheSys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.MSpanInuse, float64(ms.MSpanInuse)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.MSpanInuse, float64(ms.MSpanInuse)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.MSpanSys, float64(ms.MSpanSys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.MSpanSys, float64(ms.MSpanSys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.Mallocs, float64(ms.Mallocs)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.Mallocs, float64(ms.Mallocs)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.NextGC, float64(ms.NextGC)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.NextGC, float64(ms.NextGC)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.NumForcedGC, float64(ms.NumForcedGC)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.NumForcedGC, float64(ms.NumForcedGC)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.NumGC, float64(ms.NumGC)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.NumGC, float64(ms.NumGC)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.OtherSys, float64(ms.OtherSys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.OtherSys, float64(ms.OtherSys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.PauseTotalNs, float64(ms.PauseTotalNs)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.PauseTotalNs, float64(ms.PauseTotalNs)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.StackInuse, float64(ms.StackInuse)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.StackInuse, float64(ms.StackInuse)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.StackSys, float64(ms.StackSys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.StackSys, float64(ms.StackSys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.Sys, float64(ms.Sys)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.Sys, float64(ms.Sys)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.TotalAlloc, float64(ms.TotalAlloc)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.TotalAlloc, float64(ms.TotalAlloc)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
 
-	if err := p.repo.Count(ctx, entity.PollCount, 1); err != nil {
+	if err := p.repo.StoreCounter(ctx, entity.PollCount, 1); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.RandomValue, rand.Float64()); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.RandomValue, rand.Float64()); err != nil {
 		p.logger.Error(errMetricSave)
 	}
 
@@ -193,10 +196,10 @@ func (p *metricPoller) updateUtilMetrics(ctx context.Context, wg *sync.WaitGroup
 
 	v, _ := mem.VirtualMemory()
 
-	if err := p.repo.Replace(ctx, entity.TotalMemory, float64(v.Total)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.TotalMemory, float64(v.Total)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
-	if err := p.repo.Replace(ctx, entity.FreeMemory, float64(v.Free)); err != nil {
+	if err := p.repo.StoreGauge(ctx, entity.FreeMemory, float64(v.Free)); err != nil {
 		p.logger.Error(errMetricSave)
 	}
 

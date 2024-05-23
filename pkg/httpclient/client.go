@@ -12,7 +12,6 @@ const (
 type client struct {
 	client     *resty.Client
 	retryCount int
-	numWorkers int
 }
 
 func NewClient(opts ...Option) *client {

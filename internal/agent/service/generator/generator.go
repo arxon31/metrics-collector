@@ -63,7 +63,7 @@ func (g *requestGenerator) Generate(ctx context.Context) {
 	go g.makeBatchMetricsRequest(ctx)
 }
 
-func (g *requestGenerator) Requests() chan *resty.Request {
+func (g *requestGenerator) Requests() <-chan *resty.Request {
 	return g.GeneratedRequests
 }
 

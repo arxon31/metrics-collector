@@ -3,52 +3,77 @@ package main
 import (
 	"context"
 	"github.com/arxon31/metrics-collector/internal/agent/config"
+	"github.com/arxon31/metrics-collector/internal/agent/service/compressor"
+	"github.com/arxon31/metrics-collector/internal/agent/service/hasher"
+	"github.com/arxon31/metrics-collector/internal/agent/service/poller"
+	"github.com/arxon31/metrics-collector/internal/agent/service/reporter"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	"github.com/arxon31/metrics-collector/pkg/httpclient"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"go.uber.org/zap"
-
-	"github.com/arxon31/metrics-collector/internal/agent"
 )
 
+const retryCount = 3
+
 func main() {
+	os.Exit(run())
+}
 
-	ctx, cancel := context.WithCancel(context.Background())
+func run() int {
+	logger := initLogger()
+	logger.Info("starting agent")
 
-	go listenStopSignals(cancel)
+	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 
+	services := errgroup.Group{}
+
+	cfg, err := config.NewAgentConfig()
+	if err != nil {
+		logger.Error("failed to parse a config due to error: %v", err)
+		return 1
+	}
+
+	repo := memory.NewMapStorage()
+
+	reportClient := httpclient.NewClient(httpclient.WithRetries(retryCount))
+
+	hashService := hasher.NewHasherService(cfg.HashKey)
+	compressService := compressor.NewCompressorService()
+
+	pollService := poller.New(logger, repo, repo, cfg, hashService, compressService)
+	services.Go(func() error {
+		pollService.Run(ctx)
+		return nil
+	})
+
+	reportService := reporter.NewReporter(logger, cfg.RateLimit, cfg.ReportInterval, reportClient, pollService.GetReqChan())
+	services.Go(func() error {
+		reportService.Run(ctx)
+		return nil
+	})
+
+	select {
+	case <-ctx.Done():
+		err = services.Wait()
+		if err != nil {
+			logger.Info("services stopped due to: %v", err)
+		}
+		logger.Infof("agent stopped due to signal: %v", ctx.Err())
+	}
+
+	return 0
+}
+
+func initLogger() *zap.SugaredLogger {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.Sync()
-
-	sugared := logger.Sugar()
-
-	sugared.Infoln("starting agent...")
-
-	cfg, err := config.NewAgentConfig()
-	if err != nil {
-		log.Fatalf("failed to parse a config due to error: %v", err)
-	}
-
-	a := agent.New(cfg, sugared)
-	log.Printf("a is posting to %s with poll interval %.1fs, report interval %.1fs and %d workers",
-		cfg.Address,
-		cfg.PollInterval.Seconds(),
-		cfg.ReportInterval.Seconds(),
-		cfg.RateLimit)
-
-	a.Run(ctx)
-
-}
-
-func listenStopSignals(cancelFunc context.CancelFunc) {
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-
-	cancelFunc()
+	return logger.Sugar()
 }

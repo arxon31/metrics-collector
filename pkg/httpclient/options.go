@@ -10,12 +10,6 @@ func WithRetries(count int) Option {
 	}
 }
 
-func WithWorkers(count int) Option {
-	return func(c *client) {
-		c.numWorkers = count
-	}
-}
-
 func conditionWithUnsuccessfulResponse(response *resty.Response, err error) bool {
 	if !response.IsSuccess() {
 		return true
