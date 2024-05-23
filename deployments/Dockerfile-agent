@@ -1,0 +1,10 @@
+FROM golang:1.22-bullseye as builder
+WORKDIR /app/metrics-collector
+COPY . .
+RUN \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -C cmd/agent -o agent
+
+FROM debian:bullseye-slim as runner
+WORKDIR /app/metrics-collector/agent
+COPY --from=builder /app/metrics-collector/cmd/agent/agent /agent
+ENTRYPOINT ["/agent"]
