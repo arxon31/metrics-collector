@@ -3,11 +3,12 @@ package postgres
 import (
 	"database/sql"
 	"errors"
+	"log"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
-	"log"
 )
 
 func migrationsUp(db *sql.DB) {
@@ -16,8 +17,11 @@ func migrationsUp(db *sql.DB) {
 		panic(err)
 	}
 	instance, err := migrate.NewWithDatabaseInstance(
-		"file:///migrations",
+		"file://./migrations",
 		"postgres", driver)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	err = instance.Up()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {

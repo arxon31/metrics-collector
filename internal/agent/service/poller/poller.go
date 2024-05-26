@@ -3,14 +3,11 @@ package poller
 
 import (
 	"context"
-	"github.com/arxon31/metrics-collector/internal/agent/config"
-	"github.com/arxon31/metrics-collector/internal/agent/service/generator"
-	"github.com/arxon31/metrics-collector/internal/entity"
-	"github.com/go-resty/resty/v2"
 	"math/rand"
 	"runtime"
-	"sync"
 	"time"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 
 	"github.com/shirou/gopsutil/mem"
 	"go.uber.org/zap"
@@ -21,37 +18,17 @@ type pollerRepo interface {
 	StoreCounter(ctx context.Context, name string, value int64) error
 }
 
-type generatorRepo interface {
-	StoreCounter(ctx context.Context, name string, value int64) error
-	Metrics(ctx context.Context) ([]entity.MetricDTO, error)
-}
-
-type hasher interface {
-	Hash([]byte) (string, error)
-}
-
-type compressor interface {
-	Compress([]byte) ([]byte, error)
-}
-
-type requestGenerator interface {
-	Generate(ctx context.Context)
-	Requests() <-chan *resty.Request
-}
-
 var errMetricSave = "metric save error"
 
 type metricPoller struct {
 	repo         pollerRepo
-	gen          requestGenerator
 	pollInterval time.Duration
 	logger       *zap.SugaredLogger
 }
 
-func New(logger *zap.SugaredLogger, pRepo pollerRepo, gRepo generatorRepo, cfg *config.Config, hasher hasher, compressor compressor) *metricPoller {
+func New(logger *zap.SugaredLogger, pRepo pollerRepo) *metricPoller {
 
 	p := &metricPoller{
-		gen:    generator.New(cfg.Address, cfg.RateLimit, gRepo, hasher, compressor, logger),
 		repo:   pRepo,
 		logger: logger,
 	}
@@ -59,40 +36,13 @@ func New(logger *zap.SugaredLogger, pRepo pollerRepo, gRepo generatorRepo, cfg *
 	return p
 }
 
-func (p *metricPoller) GetReqChan() <-chan *resty.Request {
-	return p.gen.Requests()
+// Poll function polls metrics and returns them in Metrics struct
+func (p *metricPoller) Poll(ctx context.Context) {
+	p.updateRuntimeMetrics(ctx)
+	p.updateUtilMetrics(ctx)
 }
 
-func (p *metricPoller) Run(ctx context.Context) {
-
-	pollTimer := time.NewTicker(p.pollInterval)
-	defer pollTimer.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			p.logger.Info("poller gracefully stopped")
-			return
-		case <-pollTimer.C:
-			p.poll(ctx)
-			p.gen.Generate(ctx)
-		}
-	}
-}
-
-// poll function polls metrics and returns them in Metrics struct
-func (p *metricPoller) poll(ctx context.Context) {
-	wg := new(sync.WaitGroup)
-	wg.Add(2)
-
-	go p.updateRuntimeMetrics(ctx, wg)
-	go p.updateUtilMetrics(ctx, wg)
-
-	wg.Wait()
-
-}
-
-func (p *metricPoller) updateRuntimeMetrics(ctx context.Context, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (p *metricPoller) updateRuntimeMetrics(ctx context.Context) {
 	p.logger.Debug("start update runtime metrics")
 
 	ms := &runtime.MemStats{}
@@ -190,8 +140,7 @@ func (p *metricPoller) updateRuntimeMetrics(ctx context.Context, wg *sync.WaitGr
 	p.logger.Debug("successfully updated runtime metrics")
 }
 
-func (p *metricPoller) updateUtilMetrics(ctx context.Context, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (p *metricPoller) updateUtilMetrics(ctx context.Context) {
 	p.logger.Debug("start update util metrics")
 
 	v, _ := mem.VirtualMemory()

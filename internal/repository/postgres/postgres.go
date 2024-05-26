@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
-	"time"
 
 	_ "github.com/jackc/pgx/stdlib"
 	"go.uber.org/zap"

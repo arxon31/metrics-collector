@@ -1,7 +1,20 @@
+// TODO: отдельный пакет для логгера
+
 package main
 
 import (
 	"context"
+	"errors"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
+
 	"github.com/arxon31/metrics-collector/internal/repository"
 	"github.com/arxon31/metrics-collector/internal/server/config"
 	controllers "github.com/arxon31/metrics-collector/internal/server/controller/http"
@@ -10,13 +23,9 @@ import (
 	"github.com/arxon31/metrics-collector/internal/server/service/provider"
 	"github.com/arxon31/metrics-collector/internal/server/service/storage"
 	"github.com/arxon31/metrics-collector/pkg/httpserver"
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
 )
+
+var Logger *zap.SugaredLogger
 
 func main() {
 	os.Exit(run())
@@ -30,6 +39,8 @@ func run() int {
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	services := errgroup.Group{}
+
 	cfg, err := config.NewServerConfig()
 	if err != nil {
 		logger.Fatalf("failed to parse a config due to error: %v", err)
@@ -40,8 +51,13 @@ func run() int {
 		logger.Fatalf("failed to create repository due to error: %v", err)
 	}
 
-	failoverService := failover.NewService(repo, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore, logger)
-	go failoverService.Run(ctx)
+	if cfg.DBString == "" {
+		failoverService := failover.NewService(repo, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore, logger)
+		services.Go(func() error {
+			failoverService.Run(ctx)
+			return nil
+		})
+	}
 
 	pingerService := pinger.NewPingerService(repo)
 
@@ -52,7 +68,7 @@ func run() int {
 	mux := chi.NewRouter()
 	controller := controllers.NewController(mux, storageService, providerService, pingerService, logger, cfg.HashKey)
 
-	server := httpserver.NewHttpServer(controller, httpserver.WithAddr(cfg.Address))
+	server := httpserver.NewHTTPServer(controller, httpserver.WithAddr(cfg.Address))
 	logger.Infof("server listening on: %s", cfg.Address)
 
 	select {
@@ -60,6 +76,11 @@ func run() int {
 		logger.Infof("server error: %v", s)
 		return 1
 	case <-ctx.Done():
+		err := services.Wait()
+		if err != nil && !errors.Is(err, context.Canceled) {
+			logger.Errorf("failed to gracefully shutdown server: %v", err)
+			return 1
+		}
 		logger.Infof("server terminated")
 	}
 

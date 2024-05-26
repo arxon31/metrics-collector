@@ -3,10 +3,12 @@ package repository
 
 import (
 	"context"
+
+	"go.uber.org/zap"
+
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/arxon31/metrics-collector/internal/repository/postgres"
-	"go.uber.org/zap"
 )
 
 type Repository interface {

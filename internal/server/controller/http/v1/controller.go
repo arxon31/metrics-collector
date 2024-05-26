@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
 	"github.com/arxon31/metrics-collector/internal/entity"
 	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
-	"github.com/go-chi/chi/v5"
-	"net/http"
 )
 
 const (
@@ -63,7 +65,7 @@ func (v *v1) getGaugeMetric(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("%v", value)))
 
@@ -79,7 +81,7 @@ func (v *v1) getCounterMetric(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("%v", value)))
 }

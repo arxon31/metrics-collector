@@ -2,14 +2,16 @@
 package generator
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/entity"
-	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+
+	"go.uber.org/zap"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 )
 
 const (
@@ -33,24 +35,21 @@ type compressor interface {
 }
 
 type requestGenerator struct {
-	address           string
-	rateLimit         int
-	repo              repo
-	hasher            hasher
-	compressor        compressor
-	logger            *zap.SugaredLogger
-	GeneratedRequests chan *resty.Request
+	address    string
+	rateLimit  int
+	repo       repo
+	hasher     hasher
+	compressor compressor
+	logger     *zap.SugaredLogger
 }
 
-func New(address string, rateLimit int, repo repo, hasher hasher, compressor compressor, logger *zap.SugaredLogger) *requestGenerator {
+func New(address string, repo repo, hasher hasher, compressor compressor, logger *zap.SugaredLogger) *requestGenerator {
 	g := &requestGenerator{
-		address:           address,
-		rateLimit:         rateLimit,
-		repo:              repo,
-		hasher:            hasher,
-		compressor:        compressor,
-		logger:            logger,
-		GeneratedRequests: make(chan *resty.Request, rateLimit),
+		address:    address,
+		repo:       repo,
+		hasher:     hasher,
+		compressor: compressor,
+		logger:     logger,
 	}
 
 	return g
@@ -59,15 +58,15 @@ func New(address string, rateLimit int, repo repo, hasher hasher, compressor com
 // Generate func generating requests and sending them to generated channel
 // Below you can see all the methods that can be used
 // Now using only makeBatchMetricsRequest which generates request with all metrics in JSON
-func (g *requestGenerator) Generate(ctx context.Context) {
-	go g.makeBatchMetricsRequest(ctx)
+func (g *requestGenerator) Generate(ctx context.Context) <-chan *http.Request {
+	requests := make(chan *http.Request)
+
+	go g.makeCompressedMetricsRequest(ctx, requests)
+
+	return requests
 }
 
-func (g *requestGenerator) Requests() <-chan *resty.Request {
-	return g.GeneratedRequests
-}
-
-func (g *requestGenerator) makeGaugeURLRequest(ctx context.Context) {
+func (g *requestGenerator) makeGaugeURLRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
 		g.logger.Error(err)
@@ -77,15 +76,19 @@ func (g *requestGenerator) makeGaugeURLRequest(ctx context.Context) {
 	for _, metric := range metrics {
 		if metric.MetricType == entity.GaugeType {
 			val := strconv.FormatFloat(*metric.Gauge, 'f', -1, 64)
-			url := g.makeUrl(metric.MetricType, metric.Name, val)
-			req := resty.Request{URL: url, Method: http.MethodPost}
-			g.GeneratedRequests <- &req
+			url := g.makeURL(metric.MetricType, metric.Name, val)
+			req, err := http.NewRequest(http.MethodPost, url, nil)
+			if err != nil {
+				g.logger.Error(err)
+				continue
+			}
+			requests <- req
 		}
 	}
 
 }
 
-func (g *requestGenerator) makeCounterURLRequest(ctx context.Context) {
+func (g *requestGenerator) makeCounterURLRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
 		g.logger.Error(err)
@@ -95,21 +98,25 @@ func (g *requestGenerator) makeCounterURLRequest(ctx context.Context) {
 	for _, metric := range metrics {
 		if metric.MetricType == entity.CounterType {
 			val := strconv.FormatInt(*metric.Counter, 10)
-			url := g.makeUrl(metric.MetricType, metric.Name, val)
-			req := resty.Request{URL: url, Method: http.MethodPost}
-			g.GeneratedRequests <- &req
+			url := g.makeURL(metric.MetricType, metric.Name, val)
+			req, err := http.NewRequest(http.MethodPost, url, nil)
+			if err != nil {
+				g.logger.Error(err)
+				continue
+			}
+			requests <- req
 		}
 	}
 }
 
-func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context) {
+func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
 		g.logger.Error(err)
 		return
 	}
 
-	url := g.makeUrl2(metricURL)
+	url := g.makeURL2(metricURL)
 
 	for _, metric := range metrics {
 		metricBytes, err := json.Marshal(metric)
@@ -122,9 +129,13 @@ func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context) {
 			g.logger.Error(err)
 			continue
 		}
-		req := resty.Request{URL: url, Method: http.MethodPost, Body: compressedMetric}
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(compressedMetric))
+		if err != nil {
+			g.logger.Error(err)
+			continue
+		}
 		req.Header.Set("Content-Encoding", "gzip")
-		g.GeneratedRequests <- &req
+		requests <- req
 
 		if metric.MetricType == entity.CounterType {
 			err := g.repo.StoreCounter(ctx, metric.Name, -*metric.Counter)
@@ -136,7 +147,7 @@ func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context) {
 	}
 }
 
-func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context) {
+func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
 		g.logger.Error(err)
@@ -154,22 +165,27 @@ func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context) {
 		g.logger.Error(err)
 		return
 	}
-	url := g.makeUrl2(batchURL)
-	req := resty.Request{URL: url, Method: http.MethodPost, Body: metricsBatchCompressed, Header: http.Header{"Content-Encoding": {"gzip"}}}
+	url := g.makeURL2(batchURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(metricsBatchCompressed))
+	if err != nil {
+		g.logger.Error(err)
+		return
+	}
+	req.Header.Set("Content-Encoding", "gzip")
 
 	hashSign, err := g.hasher.Hash(metricsBatchCompressed)
 	if err != nil {
-		g.GeneratedRequests <- &req
+		requests <- req
 		return
 	}
 	req.Header.Set(hashHeader, hashSign)
-	g.GeneratedRequests <- &req
+	requests <- req
 }
 
-func (g *requestGenerator) makeUrl(metricType, name, val string) string {
+func (g *requestGenerator) makeURL(metricType, name, val string) string {
 	return fmt.Sprintf("http://%s/update/%s/%s/%s", g.address, metricType, name, val)
 }
 
-func (g *requestGenerator) makeUrl2(endpoint string) string {
+func (g *requestGenerator) makeURL2(endpoint string) string {
 	return fmt.Sprintf("http://%s/%s/", g.address, endpoint)
 }

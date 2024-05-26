@@ -2,14 +2,16 @@ package http
 
 import (
 	"context"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
+
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-collector/internal/server/controller/http/middlewares"
 	v1 "github.com/arxon31/metrics-collector/internal/server/controller/http/v1"
 	v2 "github.com/arxon31/metrics-collector/internal/server/controller/http/v2"
 	v3 "github.com/arxon31/metrics-collector/internal/server/controller/http/v3"
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
-	"net/http"
 )
 
 type storageService interface {
@@ -38,7 +40,7 @@ func NewController(handler *chi.Mux, storage storageService, provider providerSe
 	sprint1 := v1.NewController(storage, provider)
 	sprint1.Register(handler)
 
-	sprint2 := v2.NewController(storage)
+	sprint2 := v2.NewController(storage, provider)
 	sprint2.Register(handler)
 
 	sprint3 := v3.NewController(storage, provider, pinger)

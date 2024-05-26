@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/entity"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 )
 
 type repo interface {
@@ -64,6 +66,14 @@ func (s *service) Run(ctx context.Context) {
 	if err != nil && !errors.Is(err, context.Canceled) {
 		s.logger.Errorln("dumper failed:", err)
 	}
+
+	err = s.dump()
+	if err != nil {
+		s.logger.Errorln("can not dump data after shutdown:", err)
+		return
+	}
+	s.logger.Infoln("dumped data after shutdown to:", s.path)
+
 }
 
 func (s *service) dumpByInterval(ctx context.Context) error {
@@ -79,12 +89,6 @@ func (s *service) dumpByInterval(ctx context.Context) error {
 			}
 			s.logger.Infoln("TICK:dumped data to:", s.path)
 		case <-ctx.Done():
-			err := s.dump()
-			if err != nil {
-				s.logger.Errorln("can not dump data after app shutdown:", err)
-				return err
-			}
-			s.logger.Infoln("dumped data after app shutdown to:", s.path)
 			return ctx.Err()
 		}
 	}
@@ -95,12 +99,6 @@ func (s *service) dumpSynchronously(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			err := s.dump()
-			if err != nil {
-				s.logger.Errorln("can not dump data after app shutdown:", err)
-				return err
-			}
-			s.logger.Infoln("dumped data after app shutdown to:", s.path)
 			return ctx.Err()
 		default:
 			err := s.dump()
@@ -143,10 +141,16 @@ func (s *service) dump() error {
 }
 
 func (s *service) restore(ctx context.Context) error {
-	file, err := os.OpenFile(s.path, os.O_RDONLY, os.ModePerm)
+	if _, err := os.Stat(s.path); errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	file, err := os.Open(s.path)
 	if err != nil {
 		return fmt.Errorf("can not open restoring file: %w", err)
 	}
+	defer file.Close()
+
 	rawMetrics, err := io.ReadAll(file)
 	if err != nil {
 		return fmt.Errorf("can not read restoring file: %w", err)

@@ -3,19 +3,16 @@ package reporter
 
 import (
 	"context"
-	"errors"
-	"github.com/go-resty/resty/v2"
-	"golang.org/x/sync/errgroup"
+	"net/http"
 	"time"
 
 	"go.uber.org/zap"
 )
 
-const retryAttempts = 3
 const workerTimeout = 2 * time.Second
 
 type reporter interface {
-	DoCtx(ctx context.Context, req *resty.Request) (*resty.Response, error)
+	Do(req *http.Request) (*http.Response, error)
 }
 
 type metricReporter struct {
@@ -23,68 +20,48 @@ type metricReporter struct {
 	rateLimit      int
 	reportInterval time.Duration
 	reporter       reporter
-	requests       <-chan *resty.Request
-	workers        errgroup.Group
 }
 
-func NewReporter(logger *zap.SugaredLogger, rateLimit int, reportInterval time.Duration, reporter reporter, requests <-chan *resty.Request) *metricReporter {
-	workers := errgroup.Group{}
-	workers.SetLimit(rateLimit)
+func NewReporter(logger *zap.SugaredLogger, rateLimit int, reporter reporter) *metricReporter {
 
 	rep := &metricReporter{
-		logger:         logger,
-		reportInterval: reportInterval,
-		reporter:       reporter,
-		requests:       requests,
-		workers:        workers,
+		logger:    logger,
+		reporter:  reporter,
+		rateLimit: rateLimit,
 	}
 
 	return rep
 }
 
-func (r *metricReporter) Run(ctx context.Context) {
-	ticker := time.NewTicker(r.reportInterval)
-	defer ticker.Stop()
+func (r *metricReporter) Report(reqChan <-chan *http.Request) {
+	for i := 0; i < r.rateLimit; i++ {
+		go r.runWorker(reqChan)
+	}
+}
 
-	workerCtx, cancel := context.WithTimeout(ctx, workerTimeout)
+func (r *metricReporter) runWorker(reqChan <-chan *http.Request) error {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), workerTimeout)
 	defer cancel()
 
 	for {
 		select {
-		case <-ctx.Done():
-			err := r.workers.Wait()
-			if err != nil && !errors.Is(err, context.Canceled) {
-				r.logger.Error(err)
-			}
-			r.logger.Info("reporter gracefully stopped")
-			return
-		case <-ticker.C:
-			for r.workers.TryGo(func() error {
-				return r.runWorker(workerCtx)
-			}) {
-			}
-
-		}
-
-	}
-}
-
-func (r *metricReporter) runWorker(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case request, ok := <-r.requests:
+		case <-timeoutCtx.Done():
+			return nil
+		case req, ok := <-reqChan:
 			if !ok {
 				return nil
 			}
-			resp, err := r.reporter.DoCtx(ctx, request)
+			resp, err := r.reporter.Do(req)
 			if err != nil {
 				return err
 			}
-			if !resp.IsSuccess() {
-				r.logger.Warn("reporter failed to send request", zap.String("request", request.URL), zap.Int("status code", resp.StatusCode()))
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				r.logger.Error("unexpected status code", zap.Int("status_code", resp.StatusCode))
 			}
+			r.logger.Info("request processed")
+			return nil
 		}
 	}
+
 }

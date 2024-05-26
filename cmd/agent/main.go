@@ -2,6 +2,16 @@ package main
 
 import (
 	"context"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/arxon31/metrics-collector/internal/agent/service/generator"
+
+	"go.uber.org/zap"
+
 	"github.com/arxon31/metrics-collector/internal/agent/config"
 	"github.com/arxon31/metrics-collector/internal/agent/service/compressor"
 	"github.com/arxon31/metrics-collector/internal/agent/service/hasher"
@@ -9,12 +19,6 @@ import (
 	"github.com/arxon31/metrics-collector/internal/agent/service/reporter"
 	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/arxon31/metrics-collector/pkg/httpclient"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 const retryCount = 3
@@ -31,8 +35,6 @@ func run() int {
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	services := errgroup.Group{}
-
 	cfg, err := config.NewAgentConfig()
 	if err != nil {
 		logger.Error("failed to parse a config due to error: %v", err)
@@ -41,31 +43,36 @@ func run() int {
 
 	repo := memory.NewMapStorage()
 
-	reportClient := httpclient.NewClient(httpclient.WithRetries(retryCount))
+	reportClient := httpclient.NewClient()
 
 	hashService := hasher.NewHasherService(cfg.HashKey)
 	compressService := compressor.NewCompressorService()
 
-	pollService := poller.New(logger, repo, repo, cfg, hashService, compressService)
-	services.Go(func() error {
-		pollService.Run(ctx)
-		return nil
-	})
+	pollService := poller.New(logger, repo)
 
-	reportService := reporter.NewReporter(logger, cfg.RateLimit, cfg.ReportInterval, reportClient, pollService.GetReqChan())
-	services.Go(func() error {
-		reportService.Run(ctx)
-		return nil
-	})
+	generateService := generator.New(cfg.Address, repo, hashService, compressService, logger)
 
-	select {
-	case <-ctx.Done():
-		err = services.Wait()
-		if err != nil {
-			logger.Info("services stopped due to: %v", err)
+	reportService := reporter.NewReporter(logger, cfg.RateLimit, reportClient)
+
+	pollTicker := time.NewTicker(cfg.PollInterval)
+	defer pollTicker.Stop()
+
+	reportTicker := time.NewTicker(cfg.ReportInterval)
+	defer reportTicker.Stop()
+
+WORKLOOP:
+	for {
+		select {
+		case <-ctx.Done():
+			break WORKLOOP
+		case <-pollTicker.C:
+			pollService.Poll(ctx)
+		case <-reportTicker.C:
+			reportService.Report(generateService.Generate(ctx))
 		}
-		logger.Infof("agent stopped due to signal: %v", ctx.Err())
 	}
+
+	logger.Infof("agent stopped")
 
 	return 0
 }

@@ -2,9 +2,10 @@ package memory
 
 import (
 	"context"
+	"sync"
+
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
-	"sync"
 )
 
 type MapStorage struct {
@@ -64,18 +65,20 @@ func (s *MapStorage) Metrics(_ context.Context) ([]entity.MetricDTO, error) {
 	metrics := make([]entity.MetricDTO, 0, len(s.gauges)+len(s.counts))
 
 	for name, value := range s.gauges {
+		val := value
 		metrics = append(metrics, entity.MetricDTO{
 			Name:       name,
 			MetricType: entity.GaugeType,
-			Gauge:      &value,
+			Gauge:      &val,
 		})
 	}
 
 	for name, value := range s.counts {
+		val := value
 		metrics = append(metrics, entity.MetricDTO{
 			Name:       name,
 			MetricType: entity.CounterType,
-			Counter:    &value,
+			Counter:    &val,
 		})
 	}
 
