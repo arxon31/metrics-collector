@@ -2,12 +2,10 @@ package middlewares
 
 import (
 	"compress/gzip"
+	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
-
-	"github.com/arxon31/metrics-collector/pkg/e"
 )
 
 var compressibleTypes = map[string]bool{
@@ -25,7 +23,6 @@ func NewCompressingMiddleware() *compressingMiddleware {
 
 // WithCompress middleware compresses and decompresses responses
 func (c *compressingMiddleware) WithCompress(next http.Handler) http.Handler {
-	const op = "middlewares.WithCompress()"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writer := w
 		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") && (compressibleTypes[r.Header.Get("Content-Type")] || compressibleTypes[r.Header.Get("Accept")]) {
@@ -43,8 +40,7 @@ func (c *compressingMiddleware) WithCompress(next http.Handler) http.Handler {
 		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 			gzipReader, err := gzip.NewReader(r.Body)
 			if err != nil {
-				log.Println(e.WrapString(op, "failed to create gzip reader", err))
-				http.Error(w, e.WrapString(op, "failed to create gzip reader", err), http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("can not create gzip reader: %s", err), http.StatusInternalServerError)
 				return
 			}
 			defer gzipReader.Close()

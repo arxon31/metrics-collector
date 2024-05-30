@@ -91,14 +91,15 @@ func (s *MapStorage) StoreBatch(_ context.Context, metrics []entity.MetricDTO) e
 	for _, m := range metrics {
 		switch m.MetricType {
 		case entity.GaugeType:
-			s.gauges[m.Name] = *m.Gauge
-
+			value := *m.Gauge
+			s.gauges[m.Name] = value
 		case entity.CounterType:
+			value := *m.Counter
 			if _, ok := s.counts[m.Name]; !ok {
-				s.counts[m.Name] = *m.Counter
+				s.counts[m.Name] = value
 				return nil
 			}
-			s.counts[m.Name] += *m.Counter
+			s.counts[m.Name] += value
 		}
 	}
 	return nil

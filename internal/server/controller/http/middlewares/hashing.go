@@ -1,11 +1,15 @@
 package middlewares
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"io"
 	"net/http"
 )
+
+const hashHeader = "HashSHA256"
 
 type hashingMiddleware struct {
 	key string
@@ -31,17 +35,23 @@ func (h *hashingMiddleware) WithHash(next http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var data []byte
-		_, err := r.Body.Read(data)
+		if r.Header.Get(hashHeader) == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		buf, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "can not read body", http.StatusInternalServerError)
+			return
 		}
-		sign, err := countHash(data, h.key)
+		r.Body = io.NopCloser(bytes.NewBuffer(buf))
+		sign, err := countHash(buf, h.key)
 		if err != nil {
 			http.Error(w, "can not count hash for body", http.StatusInternalServerError)
 			return
 		}
-		signFromReq := r.Header.Get("HashSHA256")
+		signFromReq := r.Header.Get(hashHeader)
 		if sign != signFromReq {
 			http.Error(w, "signs is not equal", http.StatusBadRequest)
 			return

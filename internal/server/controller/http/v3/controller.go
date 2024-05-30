@@ -47,9 +47,8 @@ func NewController(store storageService, provider providerService, pinger pinger
 
 func (v *v3) Register(h *chi.Mux) {
 	h.Get(pingDBURL, v.pingDB)
-	h.Post(saveJSONMetricsURL, v.saveJSONMetrics)
 	h.Get(getJSONMetricsURL, v.getJSONMetrics)
-
+	h.Post(saveJSONMetricsURL, v.saveJSONMetrics)
 }
 
 func (v *v3) pingDB(w http.ResponseWriter, r *http.Request) {
@@ -63,10 +62,10 @@ func (v *v3) pingDB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *v3) saveJSONMetrics(w http.ResponseWriter, r *http.Request) {
-
 	ms := make([]entity.MetricDTO, 0)
 
 	if err := json.NewDecoder(r.Body).Decode(&ms); err != nil {
+		fmt.Println("can not decode metrics")
 		http.Error(w, fmt.Sprintf("can not decode metrics: %s", err), http.StatusBadRequest)
 		return
 	}

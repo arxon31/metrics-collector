@@ -10,6 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/arxon31/metrics-collector/internal/server/service/failover"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/go-chi/chi/v5"
@@ -18,7 +20,6 @@ import (
 	"github.com/arxon31/metrics-collector/internal/repository"
 	"github.com/arxon31/metrics-collector/internal/server/config"
 	controllers "github.com/arxon31/metrics-collector/internal/server/controller/http"
-	"github.com/arxon31/metrics-collector/internal/server/service/failover"
 	"github.com/arxon31/metrics-collector/internal/server/service/pinger"
 	"github.com/arxon31/metrics-collector/internal/server/service/provider"
 	"github.com/arxon31/metrics-collector/internal/server/service/storage"
@@ -39,8 +40,6 @@ func run() int {
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	services := errgroup.Group{}
-
 	cfg, err := config.NewServerConfig()
 	if err != nil {
 		logger.Fatalf("failed to parse a config due to error: %v", err)
@@ -49,14 +48,6 @@ func run() int {
 	repo, err := repository.New(cfg.DBString, logger)
 	if err != nil {
 		logger.Fatalf("failed to create repository due to error: %v", err)
-	}
-
-	if cfg.DBString == "" {
-		failoverService := failover.NewService(repo, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore, logger)
-		services.Go(func() error {
-			failoverService.Run(ctx)
-			return nil
-		})
 	}
 
 	pingerService := pinger.NewPingerService(repo)
@@ -71,6 +62,16 @@ func run() int {
 	server := httpserver.NewHTTPServer(controller, httpserver.WithAddr(cfg.Address))
 	logger.Infof("server listening on: %s", cfg.Address)
 
+	services := errgroup.Group{}
+
+	if cfg.DBString == "" {
+		failoverService := failover.NewService(repo, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore, logger)
+		services.Go(func() error {
+			failoverService.Run(ctx)
+			return nil
+		})
+	}
+
 	select {
 	case s := <-server.Notify():
 		logger.Infof("server error: %v", s)
@@ -78,7 +79,7 @@ func run() int {
 	case <-ctx.Done():
 		err := services.Wait()
 		if err != nil && !errors.Is(err, context.Canceled) {
-			logger.Errorf("failed to gracefully shutdown server: %v", err)
+			logger.Errorf("failed to gracefully shutdown services: %v", err)
 			return 1
 		}
 		logger.Infof("server terminated")

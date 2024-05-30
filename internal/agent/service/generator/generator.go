@@ -61,6 +61,7 @@ func New(address string, repo repo, hasher hasher, compressor compressor, logger
 func (g *requestGenerator) Generate(ctx context.Context) <-chan *http.Request {
 	requests := make(chan *http.Request)
 
+	go g.makeBatchMetricsRequest(ctx, requests)
 	go g.makeCompressedMetricsRequest(ctx, requests)
 
 	return requests
@@ -129,12 +130,14 @@ func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context, req
 			g.logger.Error(err)
 			continue
 		}
+
 		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(compressedMetric))
 		if err != nil {
 			g.logger.Error(err)
 			continue
 		}
 		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Content-Type", "application/json")
 		requests <- req
 
 		if metric.MetricType == entity.CounterType {
@@ -145,6 +148,44 @@ func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context, req
 		}
 
 	}
+}
+
+func (g *requestGenerator) makeGZIPMetricsRequest(ctx context.Context, requests chan *http.Request) {
+	metrics, err := g.repo.Metrics(ctx)
+	if err != nil {
+		g.logger.Error(err)
+		return
+	}
+
+	metricsBatchJSON, err := json.Marshal(metrics)
+	if err != nil {
+		g.logger.Error(err)
+		return
+	}
+
+	metricsBatchCompressed, err := g.compressor.Compress(metricsBatchJSON)
+	if err != nil {
+		g.logger.Error(err)
+		return
+	}
+
+	url := g.makeURL2(batchURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(metricsBatchCompressed))
+	if err != nil {
+		g.logger.Error(err)
+		return
+	}
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Content-Type", "application/json")
+
+	hashSign, err := g.hasher.Hash(metricsBatchCompressed)
+
+	if err != nil {
+		requests <- req
+		return
+	}
+	req.Header.Set(hashHeader, hashSign)
+	requests <- req
 }
 
 func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context, requests chan *http.Request) {
@@ -165,6 +206,7 @@ func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context, requests
 		g.logger.Error(err)
 		return
 	}
+
 	url := g.makeURL2(batchURL)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(metricsBatchCompressed))
 	if err != nil {
@@ -172,8 +214,10 @@ func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context, requests
 		return
 	}
 	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Content-Type", "application/json")
 
 	hashSign, err := g.hasher.Hash(metricsBatchCompressed)
+
 	if err != nil {
 		requests <- req
 		return

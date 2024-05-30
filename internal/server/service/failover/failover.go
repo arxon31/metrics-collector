@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
 )
@@ -19,8 +18,8 @@ import (
 type repo interface {
 	// Metrics returns all metrics values
 	Metrics(ctx context.Context) ([]entity.MetricDTO, error)
-	// StoreBatch stores batch of metrics
-	StoreBatch(ctx context.Context, metrics []entity.MetricDTO) error
+	StoreGauge(ctx context.Context, name string, value float64) error
+	StoreCounter(ctx context.Context, name string, value int64) error
 }
 
 type service struct {
@@ -50,29 +49,24 @@ func (s *service) Run(ctx context.Context) {
 		}
 	}
 
-	dumper := errgroup.Group{}
-
-	if s.dumpInterval > 0 {
-		dumper.Go(func() error {
-			return s.dumpByInterval(ctx)
-		})
-	} else {
-		dumper.Go(func() error {
-			return s.dumpSynchronously(ctx)
-		})
-	}
-
-	err := dumper.Wait()
-	if err != nil && !errors.Is(err, context.Canceled) {
-		s.logger.Errorln("dumper failed:", err)
-	}
-
-	err = s.dump()
-	if err != nil {
-		s.logger.Errorln("can not dump data after shutdown:", err)
+	if s.path == "" {
 		return
 	}
-	s.logger.Infoln("dumped data after shutdown to:", s.path)
+
+	if s.dumpInterval > 0 {
+		err := s.dumpByInterval(ctx)
+		if err != nil {
+			s.logger.Errorln("can not dump data by interval:", err)
+			return
+		}
+
+	} else {
+		err := s.dumpSynchronously(ctx)
+		if err != nil {
+			s.logger.Errorln("can not dump data synchronously:", err)
+			return
+		}
+	}
 
 }
 
@@ -89,7 +83,13 @@ func (s *service) dumpByInterval(ctx context.Context) error {
 			}
 			s.logger.Infoln("TICK:dumped data to:", s.path)
 		case <-ctx.Done():
-			return ctx.Err()
+			err := s.dump()
+			if err != nil {
+				s.logger.Errorln("can not dump data after shutdown:", err)
+				return err
+			}
+			s.logger.Infoln("dumped data after shutdown to:", s.path)
+			return nil
 		}
 	}
 }
@@ -99,7 +99,13 @@ func (s *service) dumpSynchronously(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			err := s.dump()
+			if err != nil {
+				s.logger.Errorln("can not dump data after shutdown:", err)
+				return err
+			}
+			s.logger.Infoln("dumped data after shutdown to:", s.path)
+			return nil
 		default:
 			err := s.dump()
 			if err != nil {
@@ -116,7 +122,7 @@ func (s *service) dump() error {
 		return fmt.Errorf("can not mkdir: %w", err)
 	}
 
-	file, err := os.OpenFile(s.path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	file, err := os.OpenFile(s.path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("can not open dump file: %w", err)
 	}
@@ -163,9 +169,19 @@ func (s *service) restore(ctx context.Context) error {
 		return fmt.Errorf("can not unmarshal to DTO: %w", err)
 	}
 
-	err = s.repo.StoreBatch(ctx, metrics)
-	if err != nil {
-		return err
+	for _, m := range metrics {
+		switch m.MetricType {
+		case entity.GaugeType:
+			err = s.repo.StoreGauge(ctx, m.Name, *m.Gauge)
+			if err != nil {
+				return fmt.Errorf("can not store gauge: %w", err)
+			}
+		case entity.CounterType:
+			err = s.repo.StoreCounter(ctx, m.Name, *m.Counter)
+			if err != nil {
+				return fmt.Errorf("can not store counter: %w", err)
+			}
+		}
 	}
 
 	return nil

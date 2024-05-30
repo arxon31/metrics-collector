@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
@@ -65,8 +64,6 @@ func (v *v2) updateJSONMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("updateJSONMetric: ", m.Name)
-
 	switch m.MetricType {
 	case entity.GaugeType:
 		err := v.store.SaveGaugeMetric(r.Context(), m)
@@ -117,14 +114,11 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("requested metric name is: ", m.Name)
-
 	switch m.MetricType {
 	case entity.GaugeType:
 		val, err := v.provider.GetGaugeValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, repo.ErrMetricNotFound) {
-				log.Printf("gauge metric %s not found", m.Name)
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}
@@ -136,7 +130,6 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 		val, err := v.provider.GetCounterValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, repo.ErrMetricNotFound) {
-				log.Printf("counter metric %s not found", m.Name)
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}

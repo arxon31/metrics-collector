@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	_defaultShutdownTimeout = 5 * time.Second
+	_defaultShutdownTimeout = 10 * time.Second
 	_defaultAddr            = ":80"
 )
 

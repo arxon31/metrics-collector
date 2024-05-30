@@ -4,11 +4,12 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/arxon31/metrics-collector/internal/server/controller/http/middlewares"
+
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
-	"github.com/arxon31/metrics-collector/internal/server/controller/http/middlewares"
 	v1 "github.com/arxon31/metrics-collector/internal/server/controller/http/v1"
 	v2 "github.com/arxon31/metrics-collector/internal/server/controller/http/v2"
 	v3 "github.com/arxon31/metrics-collector/internal/server/controller/http/v3"
@@ -31,11 +32,11 @@ type pingerService interface {
 }
 
 func NewController(handler *chi.Mux, storage storageService, provider providerService, pinger pingerService, logger *zap.SugaredLogger, hashKey string) http.Handler {
-	logging := middlewares.NewLoggingMiddleware(logger)
-	hashing := middlewares.NewHashingMiddleware(hashKey)
-	compressing := middlewares.NewCompressingMiddleware()
+	hashingMw := middlewares.NewHashingMiddleware(hashKey)
+	compressingMw := middlewares.NewCompressingMiddleware()
+	loggingMw := middlewares.NewLoggingMiddleware(logger)
 
-	handler.Use(logging.WithLog, hashing.WithHash, compressing.WithCompress)
+	handler.Use(hashingMw.WithHash, compressingMw.WithCompress, loggingMw.WithLog)
 
 	sprint1 := v1.NewController(storage, provider)
 	sprint1.Register(handler)
