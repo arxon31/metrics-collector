@@ -1,9 +1,8 @@
 package entity
 
 import (
+	"fmt"
 	"strconv"
-
-	"github.com/arxon31/metrics-collector/pkg/e"
 )
 
 const (
@@ -52,19 +51,17 @@ const (
 )
 
 func (*Gauge) GaugeFromString(value string) (float64, error) {
-	const op = "metric.Parse(*Gauge)"
 	val, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		return 0, e.WrapError(op, "failed to parse value", err)
+		return 0, fmt.Errorf("falied to parse value: %w", err)
 	}
 	return val, nil
 }
 
 func (*Counter) CounterFromString(value string) (int64, error) {
-	const op = "metric.Parse(*Counter)"
 	val, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return 0, e.WrapError(op, "failed to parse value", err)
+		return 0, fmt.Errorf("falied to parse value: %w", err)
 	}
 	return val, nil
 }

@@ -19,11 +19,13 @@ const (
 	valueOfMetricJSONURL = "/value/"
 )
 
+//go:generate moq -out storageService_moq_test.go . storageService
 type storageService interface {
 	SaveGaugeMetric(ctx context.Context, metric entity.MetricDTO) error
 	SaveCounterMetric(ctx context.Context, metric entity.MetricDTO) error
 }
 
+//go:generate moq -out providerService_moq_test.go . providerService
 type providerService interface {
 	GetGaugeValue(ctx context.Context, name string) (float64, error)
 	GetCounterValue(ctx context.Context, name string) (int64, error)

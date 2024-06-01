@@ -17,16 +17,19 @@ const (
 	pingDBURL          = "/ping"
 )
 
+//go:generate moq -out storageService_moq_test.go . storageService
 type storageService interface {
 	SaveBatchMetrics(ctx context.Context, metrics []entity.MetricDTO) error
 }
 
+//go:generate moq -out providerService_moq_test.go . providerService
 type providerService interface {
 	GetGaugeValue(ctx context.Context, name string) (float64, error)
 	GetCounterValue(ctx context.Context, name string) (int64, error)
 	GetMetrics(ctx context.Context) ([]entity.MetricDTO, error)
 }
 
+//go:generate moq -out pingerService_moq_test.go . pingerService
 type pingerService interface {
 	PingDB() error
 }
@@ -65,7 +68,6 @@ func (v *v3) saveJSONMetrics(w http.ResponseWriter, r *http.Request) {
 	ms := make([]entity.MetricDTO, 0)
 
 	if err := json.NewDecoder(r.Body).Decode(&ms); err != nil {
-		fmt.Println("can not decode metrics")
 		http.Error(w, fmt.Sprintf("can not decode metrics: %s", err), http.StatusBadRequest)
 		return
 	}

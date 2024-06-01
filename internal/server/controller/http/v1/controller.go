@@ -21,11 +21,13 @@ const (
 	getUnimplementedURL  = "/value/{type}/{name}"
 )
 
+//go:generate moq -out storageService_moq_test.go . storageService
 type storageService interface {
 	SaveGaugeMetric(ctx context.Context, metric entity.MetricDTO) error
 	SaveCounterMetric(ctx context.Context, metric entity.MetricDTO) error
 }
 
+//go:generate moq -out providerService_moq_test.go . providerService
 type providerService interface {
 	GetGaugeValue(ctx context.Context, name string) (float64, error)
 	GetCounterValue(ctx context.Context, name string) (int64, error)
@@ -89,10 +91,12 @@ func (v *v1) getCounterMetric(w http.ResponseWriter, r *http.Request) {
 func (v *v1) updateCounterMetric(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	value := chi.URLParam(r, "value")
+	fmt.Println(name, value)
 
 	var counter entity.Counter
 	val, err := counter.CounterFromString(value)
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
