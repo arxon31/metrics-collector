@@ -2,11 +2,13 @@ package v1
 
 import (
 	"context"
-	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
 )
 
 func TestV1_NewController(t *testing.T) {

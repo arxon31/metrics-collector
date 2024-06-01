@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/stretchr/testify/require"
 	"os"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var (

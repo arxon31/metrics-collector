@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/arxon31/metrics-collector/internal/entity"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 )
 
 func TestV3_NewController(t *testing.T) {

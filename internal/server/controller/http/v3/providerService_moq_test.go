@@ -5,8 +5,9 @@ package v3
 
 import (
 	"context"
-	"github.com/arxon31/metrics-collector/internal/entity"
 	"sync"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 )
 
 // Ensure, that providerServiceMock does implement providerService.

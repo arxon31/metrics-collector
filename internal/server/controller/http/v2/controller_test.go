@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/arxon31/metrics-collector/internal/entity"
-	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
+	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
 )
 
 func TestV2_NewController(t *testing.T) {
@@ -223,6 +225,7 @@ func TestV2_GetValueOfJSONMetric(t *testing.T) {
 		respMetric := metric
 		respMetric.Gauge = &gaugeVal
 		respMetricJSON, err := json.Marshal(respMetric)
+		require.Nil(t, err)
 
 		require.Equal(t, http.StatusOK, w.Code)
 		require.Equal(t, string(respMetricJSON), w.Body.String())
@@ -252,6 +255,7 @@ func TestV2_GetValueOfJSONMetric(t *testing.T) {
 		respMetric := metric
 		respMetric.Counter = &counterVal
 		respMetricJSON, err := json.Marshal(respMetric)
+		require.Nil(t, err)
 
 		require.Equal(t, http.StatusOK, w.Code)
 		require.Equal(t, string(respMetricJSON), w.Body.String())
