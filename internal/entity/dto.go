@@ -2,6 +2,9 @@ package entity
 
 import "fmt"
 
+//easyjson:json
+type MetricDTOs []MetricDTO
+
 type MetricDTO struct {
 	Name       string   `json:"id"`
 	MetricType string   `json:"type"`

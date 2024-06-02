@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/mailru/easyjson"
+
 	"github.com/go-chi/chi/v5"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
@@ -65,15 +67,16 @@ func (v *v3) pingDB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *v3) saveJSONMetrics(w http.ResponseWriter, r *http.Request) {
-	ms := make([]entity.MetricDTO, 0)
+	ms := make(entity.MetricDTOs, 0)
 
-	if err := json.NewDecoder(r.Body).Decode(&ms); err != nil {
+	err := easyjson.UnmarshalFromReader(r.Body, &ms)
+	if err != nil {
 		http.Error(w, fmt.Sprintf("can not decode metrics: %s", err), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
-	err := v.store.SaveBatchMetrics(r.Context(), ms)
+	err = v.store.SaveBatchMetrics(r.Context(), ms)
 	if err != nil {
 		http.Error(w, "failed to store batch of metrics", http.StatusInternalServerError)
 	}
