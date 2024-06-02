@@ -22,6 +22,7 @@ type storageService struct {
 	logger *zap.SugaredLogger
 }
 
+// NewStorageService initializes a new storage service.
 func NewStorageService(repo storage, logger *zap.SugaredLogger) *storageService {
 	return &storageService{
 		repo:   repo,
@@ -29,6 +30,7 @@ func NewStorageService(repo storage, logger *zap.SugaredLogger) *storageService 
 	}
 }
 
+// SaveGaugeMetric saves the metric in repo
 func (s *storageService) SaveGaugeMetric(ctx context.Context, metric entity.MetricDTO) error {
 	err := metric.Validate()
 	if err != nil {
@@ -45,6 +47,7 @@ func (s *storageService) SaveGaugeMetric(ctx context.Context, metric entity.Metr
 	return nil
 }
 
+// SaveCounterMetric saves the metric in repo
 func (s *storageService) SaveCounterMetric(ctx context.Context, metric entity.MetricDTO) error {
 	err := metric.Validate()
 	if err != nil {
@@ -61,6 +64,7 @@ func (s *storageService) SaveCounterMetric(ctx context.Context, metric entity.Me
 	return nil
 }
 
+// SaveBatchMetrics saves metrics in repo
 func (s *storageService) SaveBatchMetrics(ctx context.Context, metrics []entity.MetricDTO) error {
 	validMetrics := make([]entity.MetricDTO, 0, len(metrics))
 

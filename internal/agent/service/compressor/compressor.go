@@ -8,10 +8,12 @@ import (
 type compressor struct {
 }
 
+// NewCompressorService creates new compressor service
 func NewCompressorService() *compressor {
 	return &compressor{}
 }
 
+// Compress compresses data with gzip compression
 func (c *compressor) Compress(b []byte) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	gz := gzip.NewWriter(buf)

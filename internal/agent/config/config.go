@@ -31,6 +31,7 @@ type Config struct {
 	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
+// NewAgentConfig creates new agent config
 func NewAgentConfig() (*Config, error) {
 	var config Config
 

@@ -26,6 +26,7 @@ type metricPoller struct {
 	logger       *zap.SugaredLogger
 }
 
+// New creates new poller
 func New(logger *zap.SugaredLogger, pRepo pollerRepo) *metricPoller {
 
 	p := &metricPoller{

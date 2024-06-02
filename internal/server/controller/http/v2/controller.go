@@ -37,6 +37,7 @@ type v2 struct {
 	provider providerService
 }
 
+// NewController initializes a new v3 controller.
 func NewController(store storageService, provider providerService) *v2 {
 	return &v2{
 		store:    store,
@@ -44,6 +45,7 @@ func NewController(store storageService, provider providerService) *v2 {
 	}
 }
 
+// Register registers the v2 endpoints on the provided chi Router.
 func (v *v2) Register(h *chi.Mux) {
 	h.Post(updateMetricJSONURL, v.updateJSONMetric)
 	h.Post(valueOfMetricJSONURL, v.getValueOfJSONMetric)

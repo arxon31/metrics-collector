@@ -22,6 +22,7 @@ type metricReporter struct {
 	reporter       reporter
 }
 
+// NewReporter creates new reporter
 func NewReporter(logger *zap.SugaredLogger, rateLimit int, reporter reporter) *metricReporter {
 
 	rep := &metricReporter{
@@ -33,6 +34,7 @@ func NewReporter(logger *zap.SugaredLogger, rateLimit int, reporter reporter) *m
 	return rep
 }
 
+// Report func sends http requests to server
 func (r *metricReporter) Report(reqChan <-chan *http.Request) {
 	for i := 0; i < r.rateLimit; i++ {
 		go r.runWorker(reqChan)

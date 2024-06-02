@@ -42,6 +42,7 @@ type v3 struct {
 	pinger   pingerService
 }
 
+// NewController initializes a new v3 controller.
 func NewController(store storageService, provider providerService, pinger pingerService) *v3 {
 	return &v3{
 		store:    store,
@@ -50,6 +51,7 @@ func NewController(store storageService, provider providerService, pinger pinger
 	}
 }
 
+// Register registers the v2 endpoints on the provided chi Router.
 func (v *v3) Register(h *chi.Mux) {
 	h.Get(pingDBURL, v.pingDB)
 	h.Get(getJSONMetricsURL, v.getJSONMetrics)

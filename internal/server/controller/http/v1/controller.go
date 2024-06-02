@@ -38,6 +38,7 @@ type v1 struct {
 	provider providerService
 }
 
+// NewController initializes a new v3 controller.
 func NewController(store storageService, provider providerService) *v1 {
 	return &v1{
 		store:    store,
@@ -45,6 +46,7 @@ func NewController(store storageService, provider providerService) *v1 {
 	}
 }
 
+// Register registers the v1 endpoints on the provided chi Router.
 func (v *v1) Register(h *chi.Mux) {
 	h.Route("/value", func(r chi.Router) {
 		h.Get(getGaugeMetricURL, v.getGaugeMetric)

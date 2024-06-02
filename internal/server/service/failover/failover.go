@@ -40,6 +40,7 @@ func NewService(repo repo, path string, dumpInterval time.Duration, isRestore bo
 	}
 }
 
+// Run runs the service with the given context.
 func (s *service) Run(ctx context.Context) {
 	if s.isRestore {
 		if err := s.restore(ctx); err != nil {

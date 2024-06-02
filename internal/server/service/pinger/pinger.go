@@ -14,6 +14,7 @@ func NewPingerService(p pinger) *pingerService {
 	}
 }
 
+// PingDB pings the database.
 func (s *pingerService) PingDB() error {
 	return s.pinger.Ping()
 }

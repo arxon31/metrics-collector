@@ -19,6 +19,7 @@ type providerService struct {
 	logger   *zap.SugaredLogger
 }
 
+// NewProviderService initializes a new provider service.
 func NewProviderService(provider provider, logger *zap.SugaredLogger) *providerService {
 	return &providerService{
 		provider: provider,
@@ -26,6 +27,7 @@ func NewProviderService(provider provider, logger *zap.SugaredLogger) *providerS
 	}
 }
 
+// GetCounterValue returns value of counter by name
 func (s *providerService) GetCounterValue(ctx context.Context, name string) (int64, error) {
 	val, err := s.provider.Counter(ctx, name)
 	if err != nil {
@@ -35,6 +37,7 @@ func (s *providerService) GetCounterValue(ctx context.Context, name string) (int
 	return val, nil
 }
 
+// GetGaugeValue returns value of gauge by name
 func (s *providerService) GetGaugeValue(ctx context.Context, name string) (float64, error) {
 	val, err := s.provider.Gauge(ctx, name)
 	if err != nil {
@@ -43,6 +46,7 @@ func (s *providerService) GetGaugeValue(ctx context.Context, name string) (float
 	return val, nil
 }
 
+// GetMetrics returns all metrics
 func (s *providerService) GetMetrics(ctx context.Context) ([]entity.MetricDTO, error) {
 	vals, err := s.provider.Metrics(ctx)
 	if err != nil {

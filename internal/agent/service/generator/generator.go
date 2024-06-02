@@ -57,7 +57,6 @@ func New(address string, repo repo, hasher hasher, compressor compressor, logger
 
 // Generate func generating requests and sending them to generated channel
 // Below you can see all the methods that can be used
-// Now using only makeBatchMetricsRequest which generates request with all metrics in JSON
 func (g *requestGenerator) Generate(ctx context.Context) <-chan *http.Request {
 	requests := make(chan *http.Request)
 

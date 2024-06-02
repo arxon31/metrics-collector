@@ -33,6 +33,7 @@ type Config struct {
 	HashKey         string `env:"KEY"`
 }
 
+// NewServerConfig creates new server config
 func NewServerConfig() (*Config, error) {
 	var config Config
 

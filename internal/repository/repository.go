@@ -11,6 +11,7 @@ import (
 	"github.com/arxon31/metrics-collector/internal/repository/postgres"
 )
 
+// Repository provides access to metrics
 type Repository interface {
 	// StoreGauge replaces gauge metric value
 	StoreGauge(ctx context.Context, name string, value float64) error
