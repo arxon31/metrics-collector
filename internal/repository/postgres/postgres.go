@@ -4,26 +4,33 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
+	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
 
 	_ "github.com/jackc/pgx/stdlib"
 	"go.uber.org/zap"
-
-	"github.com/arxon31/metrics-collector/internal/repository/errs"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
-type PSQL struct {
+type migrationsUpper interface {
+	up(db *sql.DB)
+}
+
+type Postgres struct {
 	db     *sql.DB
-	conn   string
+	url    string
 	logger *zap.SugaredLogger
 }
 
-func NewPostgres(conn string, logger *zap.SugaredLogger) (*PSQL, error) {
+const (
+	retryAttempts = 3
+	startSleep    = 1 * time.Second
+)
 
-	db, err := sql.Open("pgx", conn)
+func NewPostgres(url string, logger *zap.SugaredLogger) (*Postgres, error) {
+
+	db, err := sql.Open("pgx", url)
 	if err != nil {
 		return nil, err
 	}
@@ -33,40 +40,18 @@ func NewPostgres(conn string, logger *zap.SugaredLogger) (*PSQL, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	migrationsUp(db)
 
-	queryGauges := `CREATE TABLE IF NOT EXISTS gauges (
-    		name text PRIMARY KEY NOT NULL, 
-    		value DOUBLE PRECISION
-    )`
-	queryCounters := `CREATE TABLE IF NOT EXISTS counters (
-    		name text PRIMARY KEY NOT NULL, 
-    		value BIGINT
-    )`
-
-	_, err = db.ExecContext(ctx, queryGauges)
-	if err != nil {
-		logger.Errorln("can not create table for gauge metrics due to error:", err)
-		return &PSQL{}, err
-	}
-
-	_, err = db.ExecContext(ctx, queryCounters)
-	if err != nil {
-		logger.Errorln("can not create table for counter metrics due to error:", err)
-		return &PSQL{}, err
-	}
-
-	psql := &PSQL{
+	psql := &Postgres{
 		db:     db,
-		conn:   conn,
+		url:    url,
 		logger: logger,
 	}
 
 	return psql, nil
 }
 
-func (s *PSQL) StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error {
+func (s *Postgres) StoreBatch(ctx context.Context, metrics []entity.MetricDTO) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -77,15 +62,17 @@ func (s *PSQL) StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
 	countersQuery := `INSERT INTO counters (name, value) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET value=counters.value+$2`
 
 	for _, m := range metrics {
-		switch m.MType {
-		case "gauge":
-			_, err = tx.ExecContext(ctx, gaugesQuery, m.ID, *m.Value)
+		switch m.MetricType {
+		case entity.GaugeType:
+			_, err = tx.ExecContext(ctx, gaugesQuery, m.Name, *m.Gauge)
 			if err != nil {
+				tx.Rollback()
 				return err
 			}
-		case "counter":
-			_, err = tx.ExecContext(ctx, countersQuery, m.ID, *m.Delta)
+		case entity.CounterType:
+			_, err = tx.ExecContext(ctx, countersQuery, m.Name, *m.Counter)
 			if err != nil {
+				tx.Rollback()
 				return err
 			}
 		}
@@ -94,18 +81,7 @@ func (s *PSQL) StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
 	return tx.Commit()
 }
 
-func (s *PSQL) Replace(ctx context.Context, name string, value float64) error {
-	err := s.replace(ctx, name, value)
-	if err != nil {
-		err = s.retryReplace(3, s.replace, ctx, name, value)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *PSQL) replace(ctx context.Context, name string, value float64) error {
+func (s *Postgres) StoreGauge(ctx context.Context, name string, value float64) error {
 	query := `INSERT INTO gauges (name, value) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET value=$2`
 	stmt, err := s.db.PrepareContext(ctx, query)
 	if err != nil {
@@ -115,39 +91,16 @@ func (s *PSQL) replace(ctx context.Context, name string, value float64) error {
 
 	_, err = stmt.ExecContext(ctx, name, value)
 	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *PSQL) retryReplace(attempts int, f func(ctx context.Context, name string, value float64) error, ctx context.Context, name string, value float64) (err error) {
-	sleep := 1 * time.Second
-	for i := 0; i < attempts; i++ {
-		if i > 0 {
-			time.Sleep(sleep)
-			sleep += 2 * time.Second
-		}
-		err = f(ctx, name, value)
-		if err == nil {
-			return nil
-		}
-	}
-	return fmt.Errorf("after %d attempts, error: %s", attempts, err)
-}
-
-func (s *PSQL) Count(ctx context.Context, name string, value int64) error {
-	err := s.count(ctx, name, value)
-	if err != nil {
-		err = s.retryCount(3, s.count, ctx, name, value)
+		err = s.retryStore(retryAttempts, stmt, name, value)
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
-func (s *PSQL) count(ctx context.Context, name string, value int64) error {
+func (s *Postgres) StoreCounter(ctx context.Context, name string, value int64) error {
 	query := `INSERT INTO counters (name, value) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET value=counters.value+$2`
 	stmt, err := s.db.PrepareContext(ctx, query)
 	if err != nil {
@@ -157,117 +110,90 @@ func (s *PSQL) count(ctx context.Context, name string, value int64) error {
 
 	_, err = stmt.ExecContext(ctx, name, value)
 	if err != nil {
-		return err
+		err = s.retryStore(retryAttempts, stmt, name, value)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (s *PSQL) retryCount(attempts int, f func(ctx context.Context, name string, value int64) error, ctx context.Context, name string, value int64) (err error) {
-	sleep := 1 * time.Second
-	for i := 0; i < attempts; i++ {
-		if i > 0 {
-			time.Sleep(sleep)
-			sleep += 2 * time.Second
-		}
-		err = f(ctx, name, value)
-		if err == nil {
-			return nil
-		}
-	}
-	return fmt.Errorf("after %d attempts, error: %s", attempts, err)
-}
-
-func (s *PSQL) GaugeValue(ctx context.Context, name string) (float64, error) {
+func (s *Postgres) Gauge(ctx context.Context, name string) (float64, error) {
 	query := `SELECT value FROM gauges WHERE name=$1;`
 	row := s.db.QueryRowContext(ctx, query, name)
 
 	var val float64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, errs.ErrMetricNotFound
+		return 0, repoerr.ErrMetricNotFound
 	}
 	return val, nil
 }
-func (s *PSQL) CounterValue(ctx context.Context, name string) (int64, error) {
+func (s *Postgres) Counter(ctx context.Context, name string) (int64, error) {
 	query := `SELECT value FROM counters WHERE name=$1;`
 	row := s.db.QueryRowContext(ctx, query, name)
 
 	var val int64
 	err := row.Scan(&val)
 	if err != nil {
-		return 0, errs.ErrMetricNotFound
+		return 0, repoerr.ErrMetricNotFound
 	}
 	return val, nil
 }
-func (s *PSQL) Values(ctx context.Context) (string, error) {
+func (s *Postgres) Metrics(ctx context.Context) ([]entity.MetricDTO, error) {
 	query := `SELECT * FROM gauges;`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var res strings.Builder
+	metrics := make([]entity.MetricDTO, 0)
 
 	for rows.Next() {
-		var name string
-		var val float64
+		var gaugeMetric = entity.MetricDTO{MetricType: entity.GaugeType}
 
-		err = rows.Scan(&name, &val)
+		err = rows.Scan(&gaugeMetric.Name, gaugeMetric.Gauge)
 		if err != nil {
-			return "", err
+			s.logger.Error(err)
+			continue
 		}
 
-		valString := strconv.FormatFloat(val, 'g', -1, 64)
-
-		nameValString := strings.Join([]string{name, valString}, " ")
-
-		res.WriteString(nameValString)
+		metrics = append(metrics, gaugeMetric)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return "", err
+		s.logger.Error(err)
 	}
 
 	query = `SELECT * FROM counters;`
 	rows, err = s.db.QueryContext(ctx, query)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for rows.Next() {
-		var name string
-		var val int64
-
-		err = rows.Scan(&name, &val)
+		var counterMetric = entity.MetricDTO{MetricType: entity.CounterType}
+		err = rows.Scan(&counterMetric.Name, &counterMetric.Counter)
 		if err != nil {
-			return "", err
+			s.logger.Error(err)
+			continue
 		}
 
-		valString := strconv.FormatInt(val, 10)
-
-		nameValString := strings.Join([]string{name, valString}, " ")
-
-		res.WriteString(nameValString)
+		metrics = append(metrics, counterMetric)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return "", err
+		s.logger.Error(err)
 	}
 
-	return res.String(), nil
+	return metrics, nil
 }
 
-func (s *PSQL) Ping() error {
-	db, err := sql.Open("pgx", s.conn)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	err = db.Ping()
+func (s *Postgres) Ping() error {
+	err := s.db.Ping()
 	if err != nil {
 		return err
 	}
@@ -275,10 +201,17 @@ func (s *PSQL) Ping() error {
 	return nil
 }
 
-func (s *PSQL) Dump(ctx context.Context, path string) error {
-	return nil
-}
-
-func (s *PSQL) Restore(ctx context.Context, path string) error {
-	return nil
+func (s *Postgres) retryStore(attempts int, stmt *sql.Stmt, name string, value any) (err error) {
+	sleep := startSleep
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			time.Sleep(sleep)
+			sleep += 2 * time.Second
+		}
+		_, err = stmt.Exec(name, value)
+		if err == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("after %d attempts, error: %s", attempts, err)
 }

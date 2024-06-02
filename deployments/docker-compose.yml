@@ -1,0 +1,23 @@
+version: "3.7"
+
+services:
+  server:
+    image: metric-collector-server:latest
+    build:
+      context: ..
+      dockerfile: ./deployments/Dockerfile-server
+
+  agent:
+    image: metric-collector-agent:latest
+    build:
+      context: ..
+      dockerfile: ./deployments/Dockerfile-agent
+    depends_on:
+      - server
+
+  db:
+    image: postgres:latest
+    environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: metrics
+        POSTGRES_DB: metrics
