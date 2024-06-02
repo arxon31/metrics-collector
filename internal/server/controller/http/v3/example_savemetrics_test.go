@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/entity"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 )
 
 var (
@@ -23,7 +24,7 @@ var (
 	gaugeTest   = float64(20.1)
 )
 
-func ExampleSaveJSONMetrics() {
+func Example_v3saveJSONMetrics() {
 	v3 := NewController(store, provider, pinger)
 
 	metrics := []entity.MetricDTO{
@@ -59,6 +60,7 @@ func ExampleSaveJSONMetrics() {
 	v3.getJSONMetrics(rr, req)
 
 	res := rr.Result()
+	defer res.Body.Close()
 
 	fmt.Println(res.StatusCode)
 
