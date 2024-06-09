@@ -1,3 +1,4 @@
+// Package repository provides repository interface
 package repository
 
 import (
@@ -5,31 +6,33 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/arxon31/metrics-collector/internal/repository/postgres"
-	"github.com/arxon31/metrics-collector/pkg/metric"
 )
 
+// Repository provides access to metrics
 type Repository interface {
-	Replace(ctx context.Context, name string, value float64) error
-	Count(ctx context.Context, name string, value int64) error
-	GaugeValue(ctx context.Context, name string) (float64, error)
-	CounterValue(ctx context.Context, name string) (int64, error)
-	Values(ctx context.Context) (string, error)
-	Dump(ctx context.Context, path string) error
-	Restore(ctx context.Context, path string) error
-	StoreBatch(ctx context.Context, metrics []metric.MetricDTO) error
+	// StoreGauge replaces gauge metric value
+	StoreGauge(ctx context.Context, name string, value float64) error
+	// StoreCounter increases counter metric value
+	StoreCounter(ctx context.Context, name string, value int64) error
+	// Gauge returns gauge metric value
+	Gauge(ctx context.Context, name string) (float64, error)
+	// Counter returns counter metric value
+	Counter(ctx context.Context, name string) (int64, error)
+	// Metrics returns all metrics values
+	Metrics(ctx context.Context) ([]entity.MetricDTO, error)
+	// StoreBatch stores batch of metrics
+	StoreBatch(ctx context.Context, metrics []entity.MetricDTO) error
+	// Ping checks connection
 	Ping() error
 }
 
-func New(dsn string, logger *zap.SugaredLogger) (Repository, error) {
-	if dsn == "" {
+func New(url string, logger *zap.SugaredLogger) (Repository, error) {
+	if url == "" {
 		return memory.NewMapStorage(), nil
 	} else {
-		psql, err := postgres.NewPostgres(dsn, logger)
-		if err != nil {
-			return nil, err
-		}
-		return psql, nil
+		return postgres.NewPostgres(url, logger)
 	}
 }
