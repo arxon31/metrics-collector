@@ -9,6 +9,7 @@ test: build vet iter11 iter12
 build:
 	go build -C cmd/agent -o agent
 	go build -C cmd/server -o server
+	go build -C cmd/staticlint -o staticlint
 vet:
 	goimports -local "github.com/arxon31/metrics-collector" -w /Users/arxon31/go/src/github.com/arxon31/metrics-collector/
 	go vet -vettool=statictest-darwin-arm64 ./...
