@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
 
@@ -29,7 +28,10 @@ import (
 var Logger *zap.SugaredLogger
 
 func main() {
-	os.Exit(run())
+	exitCode := run()
+	if exitCode != 0 {
+		log.Fatal("exited with code", exitCode)
+	}
 }
 
 func run() int {
@@ -77,7 +79,7 @@ func run() int {
 		logger.Infof("server error: %v", s)
 		return 1
 	case <-ctx.Done():
-		err := services.Wait()
+		err = services.Wait()
 		if err != nil && !errors.Is(err, context.Canceled) {
 			logger.Errorf("failed to gracefully shutdown services: %v", err)
 			return 1

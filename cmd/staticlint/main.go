@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	mylinter "github.com/arxon31/metrics_linter"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
@@ -11,7 +13,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
-	"strings"
 )
 
 func main() {

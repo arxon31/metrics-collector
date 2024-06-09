@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -24,7 +23,10 @@ import (
 const retryCount = 3
 
 func main() {
-	os.Exit(run())
+	exitCode := run()
+	if exitCode != 0 {
+		log.Fatal("exited with code", exitCode)
+	}
 }
 
 func run() int {
