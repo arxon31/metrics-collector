@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os/signal"
 	"syscall"
@@ -20,7 +21,11 @@ import (
 	"github.com/arxon31/metrics-collector/pkg/httpclient"
 )
 
-const retryCount = 3
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
 
 func main() {
 	exitCode := run()
@@ -32,6 +37,7 @@ func main() {
 func run() int {
 	logger := initLogger()
 	logger.Info("starting agent")
+	logger.Info(fmt.Sprintf("version: %s, build time: %s, build commit: %s", buildVersion, buildDate, buildCommit))
 
 	ctx := context.Background()
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)

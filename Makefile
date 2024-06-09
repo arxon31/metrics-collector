@@ -7,8 +7,8 @@ DATABASE_DSN=postgres://postgres:metrics@localhost:5432/metrics?sslmode=disable
 all: build vet iter1 iter2 iter3 iter4 iter5 iter6 iter7 iter8 iter9 iter10 iter11 iter12 iter13 iter14
 test: build vet iter11 iter12
 build:
-	go build -C cmd/agent -o agent
-	go build -C cmd/server -o server
+	go build -C cmd/agent -o agent -ldflags="-X main.buildVersion=v0.0.1 -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.buildCommit=$(shell git rev-parse HEAD)"
+	go build -C cmd/server -o server -ldflags "-X main.buildVersion=v0.0.1 -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.buildCommit=$(shell git rev-parse HEAD)"
 	go build -C cmd/staticlint -o staticlint
 vet:
 	goimports -local "github.com/arxon31/metrics-collector" -w /Users/arxon31/go/src/github.com/arxon31/metrics-collector/
