@@ -98,7 +98,6 @@ func (v *v1) updateCounterMetric(w http.ResponseWriter, r *http.Request) {
 	var counter entity.Counter
 	val, err := counter.CounterFromString(value)
 	if err != nil {
-		fmt.Println(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
