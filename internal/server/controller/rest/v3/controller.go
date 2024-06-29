@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	saveJSONMetricsURL = "/updates/"
+	saveJSONMetricsURL = "/updates"
 	getJSONMetricsURL  = "/"
 	pingDBURL          = "/ping"
 )
