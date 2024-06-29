@@ -2,37 +2,84 @@ package main
 
 import (
 	"context"
-	config "github.com/arxon31/metrics-collector/internal/config/agent"
+	"fmt"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/arxon31/metrics-collector/internal/agent"
+	"github.com/arxon31/metrics-collector/pkg/logger"
+
+	"github.com/arxon31/metrics-collector/internal/agent/service/generator"
+
+	"github.com/arxon31/metrics-collector/internal/agent/config"
+	"github.com/arxon31/metrics-collector/internal/agent/service/compressor"
+	"github.com/arxon31/metrics-collector/internal/agent/service/hasher"
+	"github.com/arxon31/metrics-collector/internal/agent/service/poller"
+	"github.com/arxon31/metrics-collector/internal/agent/service/reporter"
+	"github.com/arxon31/metrics-collector/internal/repository/memory"
+	"github.com/arxon31/metrics-collector/pkg/httpclient"
+)
+
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 func main() {
-	log.Println("starting agent...")
+	exitCode := run()
+	if exitCode != 0 {
+		log.Fatal("exited with code", exitCode)
+	}
+}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	//defer cancel()
+func run() int {
+	logger.Logger.Info("starting agent")
+	logger.Logger.Info(fmt.Sprintf("version: %s, build time: %s, build commit: %s", buildVersion, buildDate, buildCommit))
 
-	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-		<-stop
-
-		cancel()
-	}()
+	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 
 	cfg, err := config.NewAgentConfig()
 	if err != nil {
-		log.Fatalf("failed to parse a config due to error: %v", err)
+		logger.Logger.Error("failed to parse a config due to error: %v", err)
+		return 1
 	}
 
-	params := agent.Params(*cfg)
-	a := agent.New(&params)
-	log.Printf("a is posting to %s with poll interval %.1fs and report interval %.1fs", params.Address, params.PollInterval.Seconds(), params.ReportInterval.Seconds())
-	a.Run(ctx)
+	repo := memory.NewMapStorage()
 
+	reportClient := httpclient.NewClient()
+
+	hashService := hasher.NewHasherService(cfg.HashKey)
+	compressService := compressor.NewCompressorService()
+
+	pollService := poller.New(repo)
+
+	generateService := generator.New(cfg.Address, repo, hashService, compressService)
+
+	reportService := reporter.NewReporter(cfg.RateLimit, reportClient)
+
+	pollTicker := time.NewTicker(cfg.PollInterval)
+	defer pollTicker.Stop()
+
+	reportTicker := time.NewTicker(cfg.ReportInterval)
+	defer reportTicker.Stop()
+
+WORKLOOP:
+	for {
+		select {
+		case <-ctx.Done():
+			break WORKLOOP
+		case <-pollTicker.C:
+			pollService.Poll(ctx)
+		case <-reportTicker.C:
+			reportService.Report(generateService.Generate(ctx))
+		}
+	}
+
+	logger.Logger.Info("agent stopped")
+
+	return 0
 }

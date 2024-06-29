@@ -2,51 +2,100 @@ package main
 
 import (
 	"context"
-	config "github.com/arxon31/metrics-collector/internal/config/server"
-	"github.com/arxon31/metrics-collector/internal/httpserver"
-	"github.com/arxon31/metrics-collector/internal/storage/mem"
-	"go.uber.org/zap"
+	"errors"
+	"fmt"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
+
+	"github.com/arxon31/metrics-collector/internal/server/service/failover"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/arxon31/metrics-collector/internal/repository"
+	"github.com/arxon31/metrics-collector/internal/server/config"
+	controllers "github.com/arxon31/metrics-collector/internal/server/controller/rest"
+	"github.com/arxon31/metrics-collector/internal/server/service/pinger"
+	"github.com/arxon31/metrics-collector/internal/server/service/provider"
+	"github.com/arxon31/metrics-collector/internal/server/service/storage"
+	"github.com/arxon31/metrics-collector/pkg/httpserver"
+)
+
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 func main() {
-	const op = "main()"
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		log.Fatal(err)
+	exitCode := run()
+	if exitCode != 0 {
+		log.Fatal("exited with code", exitCode)
 	}
-	defer logger.Sync()
+}
 
-	sugared := logger.Sugar()
+func run() int {
+	logger.Logger.Infoln("starting server")
+	logger.Logger.Info(fmt.Sprintf("version: %s, build time: %s, build commit: %s", buildVersion, buildDate, buildCommit))
 
-	sugared.Infoln("starting server...")
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-
-	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-		<-stop
-		cancel()
-	}()
 
 	cfg, err := config.NewServerConfig()
 	if err != nil {
-		sugared.Fatalln("failed to parse config due to error: %v", err)
+		logger.Logger.Fatalf("failed to parse a config due to error: %v", err)
 	}
 
-	storage := mem.NewMapStorage()
+	repo, err := repository.New(cfg.DBString)
+	if err != nil {
+		logger.Logger.Fatalf("failed to create repository due to error: %v", err)
+	}
 
-	params := httpserver.Params(*cfg)
+	pingerService := pinger.NewPingerService(repo)
 
-	server := httpserver.New(&params, sugared, storage, storage)
-	sugared.Infof("server is listening on %s, with store interval %.1fs, file storage path: %s, restore %t",
-		params.Address, params.StoreInterval.Seconds(), params.FileStoragePath, params.Restore)
+	providerService := provider.NewProviderService(repo)
 
-	server.Run(ctx, storage, storage)
+	storageService := storage.NewStorageService(repo)
 
+	mux := chi.NewRouter()
+	controller := controllers.NewController(mux, storageService, providerService, pingerService, cfg.HashKey)
+
+	server := httpserver.NewHTTPServer(controller, httpserver.WithAddr(cfg.Address))
+	logger.Logger.Infof("server listening on: %s", cfg.Address)
+
+	services := errgroup.Group{}
+
+	if cfg.DBString == "" {
+		failoverService := failover.NewService(repo, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
+		services.Go(func() error {
+			failoverService.Run(ctx)
+			return nil
+		})
+	}
+
+	select {
+	case s := <-server.Notify():
+		logger.Logger.Infof("server error: %v", s)
+		return 1
+	case <-ctx.Done():
+		err = services.Wait()
+		if err != nil && !errors.Is(err, context.Canceled) {
+			logger.Logger.Errorf("failed to gracefully shutdown services: %v", err)
+			return 1
+		}
+		logger.Logger.Infof("server terminated")
+	}
+
+	err = server.Shutdown()
+	if err != nil {
+		logger.Logger.Errorf("failed to gracefully shutdown server: %v", err)
+		return 1
+	}
+
+	return 0
 }
