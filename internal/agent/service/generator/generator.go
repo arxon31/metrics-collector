@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/arxon31/metrics-collector/pkg/logger"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
@@ -223,9 +223,19 @@ func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context, requests
 }
 
 func (g *requestGenerator) makeURL(metricType, name, val string) string {
-	return fmt.Sprintf("http://%s/update/%s/%s/%s", g.address, metricType, name, val)
+	path, err := url.JoinPath("http://", g.address, metricURL, metricType, name, val)
+	if err != nil {
+		logger.Logger.Error(err)
+		return ""
+	}
+	return path
 }
 
 func (g *requestGenerator) makeURL2(endpoint string) string {
-	return fmt.Sprintf("http://%s/%s/", g.address, endpoint)
+	path, err := url.JoinPath("http://", g.address, endpoint)
+	if err != nil {
+		logger.Logger.Error(err)
+		return ""
+	}
+	return path
 }
