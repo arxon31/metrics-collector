@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/pkg/logger"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
 )

@@ -1,9 +1,10 @@
 package middlewares
 
 import (
-	"github.com/arxon31/metrics-collector/pkg/logger"
 	"net/http"
 	"time"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 )
 
 type loggingMiddleware struct {

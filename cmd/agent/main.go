@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/arxon31/metrics-collector/pkg/logger"
 	"log"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 
 	"github.com/arxon31/metrics-collector/internal/agent/service/generator"
 

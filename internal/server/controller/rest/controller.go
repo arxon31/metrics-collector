@@ -6,11 +6,12 @@ import (
 
 	"github.com/arxon31/metrics-collector/internal/server/controller/rest/middlewares"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/arxon31/metrics-collector/internal/entity"
 	v1 "github.com/arxon31/metrics-collector/internal/server/controller/rest/v1"
 	v2 "github.com/arxon31/metrics-collector/internal/server/controller/rest/v2"
 	v3 "github.com/arxon31/metrics-collector/internal/server/controller/rest/v3"
-	"github.com/go-chi/chi/v5"
 )
 
 type storageService interface {

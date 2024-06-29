@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/server/controller/rest"
 	"net/http"
+
+	"github.com/arxon31/metrics-collector/internal/server/controller/rest/resterrs"
 
 	"github.com/go-chi/chi/v5"
 
@@ -66,10 +67,10 @@ func (v *v1) getGaugeMetric(w http.ResponseWriter, r *http.Request) {
 	value, err := v.provider.GetGaugeValue(r.Context(), name)
 	if err != nil {
 		if errors.Is(err, repo.ErrMetricNotFound) {
-			http.Error(w, fmt.Sprintf("%s: %s", rest.ErrMetricNotFound, name), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("%s: %s", resterrs.ErrMetricNotFound, name), http.StatusNotFound)
 			return
 		}
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -84,10 +85,10 @@ func (v *v1) getCounterMetric(w http.ResponseWriter, r *http.Request) {
 	value, err := v.provider.GetCounterValue(r.Context(), name)
 	if err != nil {
 		if errors.Is(err, repo.ErrMetricNotFound) {
-			http.Error(w, fmt.Sprintf("%s: %s", rest.ErrMetricNotFound, name), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("%s: %s", resterrs.ErrMetricNotFound, name), http.StatusNotFound)
 			return
 		}
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -103,7 +104,7 @@ func (v *v1) updateCounterMetric(w http.ResponseWriter, r *http.Request) {
 	var counter entity.Counter
 	val, err := counter.CounterFromString(value)
 	if err != nil {
-		http.Error(w, rest.ErrUnexpectedValue.Error(), http.StatusBadRequest)
+		http.Error(w, resterrs.ErrUnexpectedValue.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -114,7 +115,7 @@ func (v *v1) updateCounterMetric(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -129,7 +130,7 @@ func (v *v1) updateGaugeMetric(w http.ResponseWriter, r *http.Request) {
 	var gauge entity.Gauge
 	val, err := gauge.GaugeFromString(value)
 	if err != nil {
-		http.Error(w, rest.ErrUnexpectedValue.Error(), http.StatusBadRequest)
+		http.Error(w, resterrs.ErrUnexpectedValue.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -140,7 +141,7 @@ func (v *v1) updateGaugeMetric(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -151,7 +152,7 @@ func (v *v1) updateGaugeMetric(w http.ResponseWriter, r *http.Request) {
 func (v *v1) unimplementedSave(w http.ResponseWriter, r *http.Request) {
 	t := chi.URLParam(r, "type")
 	if t != entity.GaugeType && t != entity.CounterType {
-		http.Error(w, rest.ErrUnexpectedType.Error(), http.StatusNotImplemented)
+		http.Error(w, resterrs.ErrUnexpectedType.Error(), http.StatusNotImplemented)
 		return
 	}
 }
@@ -159,7 +160,7 @@ func (v *v1) unimplementedSave(w http.ResponseWriter, r *http.Request) {
 func (v *v1) unimplementedGet(w http.ResponseWriter, r *http.Request) {
 	t := chi.URLParam(r, "type")
 	if t != entity.GaugeType && t != entity.CounterType {
-		http.Error(w, rest.ErrUnexpectedType.Error(), http.StatusNotImplemented)
+		http.Error(w, resterrs.ErrUnexpectedType.Error(), http.StatusNotImplemented)
 		return
 	}
 }

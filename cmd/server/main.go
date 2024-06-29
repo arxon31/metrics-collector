@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/pkg/logger"
 	"log"
 	"os/signal"
 	"syscall"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 
 	"github.com/arxon31/metrics-collector/internal/server/service/failover"
 

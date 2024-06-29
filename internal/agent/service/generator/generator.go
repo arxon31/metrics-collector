@@ -5,10 +5,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/arxon31/metrics-collector/pkg/logger"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
 )

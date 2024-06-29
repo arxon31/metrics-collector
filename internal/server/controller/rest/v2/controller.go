@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/server/controller/rest"
 	"net/http"
+
+	"github.com/arxon31/metrics-collector/internal/server/controller/rest/resterrs"
 
 	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
 
@@ -59,13 +60,13 @@ func (v *v2) updateJSONMetric(w http.ResponseWriter, r *http.Request) {
 	var m entity.MetricDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		http.Error(w, rest.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
+		http.Error(w, resterrs.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	if m.MetricType != entity.GaugeType && m.MetricType != entity.CounterType {
-		http.Error(w, rest.ErrUnexpectedType.Error(), http.StatusBadRequest)
+		http.Error(w, resterrs.ErrUnexpectedType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -73,20 +74,20 @@ func (v *v2) updateJSONMetric(w http.ResponseWriter, r *http.Request) {
 	case entity.GaugeType:
 		err := v.store.SaveGaugeMetric(r.Context(), m)
 		if err != nil {
-			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+			http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	case entity.CounterType:
 		err := v.store.SaveCounterMetric(r.Context(), m)
 		if err != nil {
-			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+			http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		counterValue, err := v.provider.GetCounterValue(r.Context(), m.Name)
 		if err != nil {
-			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+			http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		}
 
 		m.Counter = &counterValue
@@ -95,7 +96,7 @@ func (v *v2) updateJSONMetric(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(m)
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -109,13 +110,13 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 	m := entity.MetricDTO{}
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		http.Error(w, rest.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
+		http.Error(w, resterrs.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	if m.MetricType != entity.GaugeType && m.MetricType != entity.CounterType {
-		http.Error(w, rest.ErrUnexpectedType.Error(), http.StatusBadRequest)
+		http.Error(w, resterrs.ErrUnexpectedType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -124,10 +125,10 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 		val, err := v.provider.GetGaugeValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, repo.ErrMetricNotFound) {
-				http.Error(w, fmt.Sprintf("%s: %s", rest.ErrMetricNotFound, m.Name), http.StatusNotFound)
+				http.Error(w, fmt.Sprintf("%s: %s", resterrs.ErrMetricNotFound, m.Name), http.StatusNotFound)
 				return
 			}
-			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+			http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 		m.Gauge = &val
@@ -135,10 +136,10 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 		val, err := v.provider.GetCounterValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, repo.ErrMetricNotFound) {
-				http.Error(w, fmt.Sprintf("%s: %s", rest.ErrMetricNotFound, m.Name), http.StatusNotFound)
+				http.Error(w, fmt.Sprintf("%s: %s", resterrs.ErrMetricNotFound, m.Name), http.StatusNotFound)
 				return
 			}
-			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+			http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 		m.Counter = &val
@@ -146,7 +147,7 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(m)
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 

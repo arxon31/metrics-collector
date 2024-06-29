@@ -3,8 +3,9 @@ package v3
 import (
 	"context"
 	"encoding/json"
-	"github.com/arxon31/metrics-collector/internal/server/controller/rest"
 	"net/http"
+
+	"github.com/arxon31/metrics-collector/internal/server/controller/rest/resterrs"
 
 	"github.com/mailru/easyjson"
 
@@ -61,7 +62,7 @@ func (v *v3) Register(h *chi.Mux) {
 func (v *v3) pingDB(w http.ResponseWriter, r *http.Request) {
 	err := v.pinger.PingDB()
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -73,14 +74,14 @@ func (v *v3) saveJSONMetrics(w http.ResponseWriter, r *http.Request) {
 
 	err := easyjson.UnmarshalFromReader(r.Body, &ms)
 	if err != nil {
-		http.Error(w, rest.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
+		http.Error(w, resterrs.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	err = v.store.SaveBatchMetrics(r.Context(), ms)
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -90,13 +91,13 @@ func (v *v3) saveJSONMetrics(w http.ResponseWriter, r *http.Request) {
 func (v *v3) getJSONMetrics(w http.ResponseWriter, r *http.Request) {
 	ms, err := v.provider.GetMetrics(r.Context())
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	resp, err := json.Marshal(ms)
 	if err != nil {
-		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
+		http.Error(w, resterrs.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 
