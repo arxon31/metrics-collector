@@ -17,8 +17,12 @@ var (
 			return nil
 		},
 	}
-	provider = &providerServiceMock{}
-	pinger   = &pingerServiceMock{}
+	provider = &providerServiceMock{
+		GetMetricsFunc: func(ctx context.Context) ([]entity.MetricDTO, error) {
+			return nil, nil
+		},
+	}
+	pinger = &pingerServiceMock{}
 
 	counterTest = int64(20)
 	gaugeTest   = float64(20.1)
