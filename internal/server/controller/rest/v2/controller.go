@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	updateMetricJSONURL  = "/update"
-	valueOfMetricJSONURL = "/value"
+	updateMetricJSONURL  = "/update/"
+	valueOfMetricJSONURL = "/value/"
 )
 
 //go:generate moq -out storageService_moq_test.go . storageService

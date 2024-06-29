@@ -233,7 +233,7 @@ func (g *requestGenerator) makeURL(metricType, name, val string) string {
 }
 
 func (g *requestGenerator) makeURL2(endpoint string) string {
-	path, err := url.JoinPath("http://", g.address, endpoint)
+	path, err := url.JoinPath("http://", g.address, endpoint, "/")
 	if err != nil {
 		logger.Logger.Error(err)
 		return ""
