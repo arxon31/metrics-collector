@@ -64,13 +64,11 @@ func (s *Postgres) StoreBatch(ctx context.Context, metrics []entity.MetricDTO) e
 		case entity.GaugeType:
 			_, err = tx.ExecContext(ctx, gaugesQuery, m.Name, *m.Gauge)
 			if err != nil {
-				tx.Rollback()
 				return err
 			}
 		case entity.CounterType:
 			_, err = tx.ExecContext(ctx, countersQuery, m.Name, *m.Counter)
 			if err != nil {
-				tx.Rollback()
 				return err
 			}
 		}
@@ -140,7 +138,7 @@ func (s *Postgres) Counter(ctx context.Context, name string) (int64, error) {
 	return val, nil
 }
 func (s *Postgres) Metrics(ctx context.Context) ([]entity.MetricDTO, error) {
-	query := `SELECT * FROM gauges;`
+	query := `SELECT (name, value) FROM gauges;`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -165,7 +163,7 @@ func (s *Postgres) Metrics(ctx context.Context) ([]entity.MetricDTO, error) {
 		logger.Logger.Error(err)
 	}
 
-	query = `SELECT * FROM counters;`
+	query = `SELECT (name, value) FROM counters;`
 	rows, err = s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
