@@ -1,15 +1,15 @@
-package http
+package rest
 
 import (
 	"context"
 	"net/http"
 
-	"github.com/arxon31/metrics-collector/internal/server/controller/http/middlewares"
+	"github.com/arxon31/metrics-collector/internal/server/controller/rest/middlewares"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
-	v1 "github.com/arxon31/metrics-collector/internal/server/controller/http/v1"
-	v2 "github.com/arxon31/metrics-collector/internal/server/controller/http/v2"
-	v3 "github.com/arxon31/metrics-collector/internal/server/controller/http/v3"
+	v1 "github.com/arxon31/metrics-collector/internal/server/controller/rest/v1"
+	v2 "github.com/arxon31/metrics-collector/internal/server/controller/rest/v2"
+	v3 "github.com/arxon31/metrics-collector/internal/server/controller/rest/v3"
 	"github.com/go-chi/chi/v5"
 )
 

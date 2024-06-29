@@ -17,7 +17,7 @@ import (
 
 	"github.com/arxon31/metrics-collector/internal/repository"
 	"github.com/arxon31/metrics-collector/internal/server/config"
-	controllers "github.com/arxon31/metrics-collector/internal/server/controller/http"
+	controllers "github.com/arxon31/metrics-collector/internal/server/controller/rest"
 	"github.com/arxon31/metrics-collector/internal/server/service/pinger"
 	"github.com/arxon31/metrics-collector/internal/server/service/provider"
 	"github.com/arxon31/metrics-collector/internal/server/service/storage"

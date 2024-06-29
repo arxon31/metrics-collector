@@ -33,7 +33,7 @@ func NewReporter(rateLimit int, reporter reporter) *metricReporter {
 	return rep
 }
 
-// Report func sends http requests to server
+// Report func sends rest requests to server
 func (r *metricReporter) Report(reqChan <-chan *http.Request) {
 	for i := 0; i < r.rateLimit; i++ {
 		go r.runWorker(reqChan)

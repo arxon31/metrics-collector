@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/server/controller/rest"
 	"net/http"
 
 	repo "github.com/arxon31/metrics-collector/internal/repository/repoerr"
@@ -58,13 +59,13 @@ func (v *v2) updateJSONMetric(w http.ResponseWriter, r *http.Request) {
 	var m entity.MetricDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		http.Error(w, fmt.Sprintf("can not decode metric: %s", err), http.StatusBadRequest)
+		http.Error(w, rest.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	if m.MetricType != entity.GaugeType && m.MetricType != entity.CounterType {
-		http.Error(w, "wrong metric type", http.StatusBadRequest)
+		http.Error(w, rest.ErrUnexpectedType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -72,20 +73,20 @@ func (v *v2) updateJSONMetric(w http.ResponseWriter, r *http.Request) {
 	case entity.GaugeType:
 		err := v.store.SaveGaugeMetric(r.Context(), m)
 		if err != nil {
-			http.Error(w, "can not save metric", http.StatusInternalServerError)
+			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 
 	case entity.CounterType:
 		err := v.store.SaveCounterMetric(r.Context(), m)
 		if err != nil {
-			http.Error(w, "can not save metric", http.StatusInternalServerError)
+			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		counterValue, err := v.provider.GetCounterValue(r.Context(), m.Name)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("can not get metric: %s", err), http.StatusInternalServerError)
+			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
 		}
 
 		m.Counter = &counterValue
@@ -94,7 +95,7 @@ func (v *v2) updateJSONMetric(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(m)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("can not encode metric: %s", err), http.StatusInternalServerError)
+		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -108,13 +109,13 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 	m := entity.MetricDTO{}
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		http.Error(w, fmt.Sprintf("can not decode metric: %s", err), http.StatusBadRequest)
+		http.Error(w, rest.ErrUnexpectedFormat.Error(), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	if m.MetricType != entity.GaugeType && m.MetricType != entity.CounterType {
-		http.Error(w, "wrong metric type", http.StatusBadRequest)
+		http.Error(w, rest.ErrUnexpectedType.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -123,10 +124,10 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 		val, err := v.provider.GetGaugeValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, repo.ErrMetricNotFound) {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, fmt.Sprintf("%s: %s", rest.ErrMetricNotFound, m.Name), http.StatusNotFound)
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 		m.Gauge = &val
@@ -134,10 +135,10 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 		val, err := v.provider.GetCounterValue(r.Context(), m.Name)
 		if err != nil {
 			if errors.Is(err, repo.ErrMetricNotFound) {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				http.Error(w, fmt.Sprintf("%s: %s", rest.ErrMetricNotFound, m.Name), http.StatusNotFound)
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
 			return
 		}
 		m.Counter = &val
@@ -145,7 +146,7 @@ func (v *v2) getValueOfJSONMetric(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(m)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("can not marshal metric: %s", err), http.StatusInternalServerError)
+		http.Error(w, rest.ErrInternalServer.Error(), http.StatusInternalServerError)
 		return
 	}
 
