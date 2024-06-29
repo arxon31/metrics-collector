@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 	"time"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-collector/internal/repository/repoerr"
 
 	_ "github.com/jackc/pgx/stdlib"
-	"go.uber.org/zap"
 )
 
 type migrationsUpper interface {
@@ -18,9 +18,8 @@ type migrationsUpper interface {
 }
 
 type Postgres struct {
-	db     *sql.DB
-	url    string
-	logger *zap.SugaredLogger
+	db  *sql.DB
+	url string
 }
 
 const (
@@ -28,7 +27,7 @@ const (
 	startSleep    = 1 * time.Second
 )
 
-func NewPostgres(url string, logger *zap.SugaredLogger) (*Postgres, error) {
+func NewPostgres(url string) (*Postgres, error) {
 
 	db, err := sql.Open("pgx", url)
 	if err != nil {
@@ -43,9 +42,8 @@ func NewPostgres(url string, logger *zap.SugaredLogger) (*Postgres, error) {
 	migrationsUp(db)
 
 	psql := &Postgres{
-		db:     db,
-		url:    url,
-		logger: logger,
+		db:  db,
+		url: url,
 	}
 
 	return psql, nil
@@ -155,7 +153,7 @@ func (s *Postgres) Metrics(ctx context.Context) ([]entity.MetricDTO, error) {
 
 		err = rows.Scan(&gaugeMetric.Name, gaugeMetric.Gauge)
 		if err != nil {
-			s.logger.Error(err)
+			logger.Logger.Error(err)
 			continue
 		}
 
@@ -164,7 +162,7 @@ func (s *Postgres) Metrics(ctx context.Context) ([]entity.MetricDTO, error) {
 
 	err = rows.Err()
 	if err != nil {
-		s.logger.Error(err)
+		logger.Logger.Error(err)
 	}
 
 	query = `SELECT * FROM counters;`
@@ -177,7 +175,7 @@ func (s *Postgres) Metrics(ctx context.Context) ([]entity.MetricDTO, error) {
 		var counterMetric = entity.MetricDTO{MetricType: entity.CounterType}
 		err = rows.Scan(&counterMetric.Name, &counterMetric.Counter)
 		if err != nil {
-			s.logger.Error(err)
+			logger.Logger.Error(err)
 			continue
 		}
 
@@ -186,7 +184,7 @@ func (s *Postgres) Metrics(ctx context.Context) ([]entity.MetricDTO, error) {
 
 	err = rows.Err()
 	if err != nil {
-		s.logger.Error(err)
+		logger.Logger.Error(err)
 	}
 
 	return metrics, nil

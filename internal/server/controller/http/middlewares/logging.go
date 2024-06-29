@@ -1,14 +1,12 @@
 package middlewares
 
 import (
+	"github.com/arxon31/metrics-collector/pkg/logger"
 	"net/http"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 type loggingMiddleware struct {
-	logger *zap.SugaredLogger
 }
 
 type loggingResponseWriter struct {
@@ -21,10 +19,8 @@ type responseData struct {
 	size       int
 }
 
-func NewLoggingMiddleware(logger *zap.SugaredLogger) *loggingMiddleware {
-	return &loggingMiddleware{
-		logger: logger,
-	}
+func NewLoggingMiddleware() *loggingMiddleware {
+	return &loggingMiddleware{}
 }
 
 // WithLog middleware logs requests
@@ -41,7 +37,7 @@ func (l *loggingMiddleware) WithLog(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		l.logger.Infoln(
+		logger.Logger.Infoln(
 			"uri", r.RequestURI,
 			"method", r.Method,
 			"execution_time", duration,

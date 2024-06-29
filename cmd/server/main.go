@@ -1,11 +1,10 @@
-// TODO: отдельный пакет для логгера
-
 package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 	"log"
 	"os/signal"
 	"syscall"
@@ -15,7 +14,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 
 	"github.com/arxon31/metrics-collector/internal/repository"
 	"github.com/arxon31/metrics-collector/internal/server/config"
@@ -40,9 +38,8 @@ func main() {
 }
 
 func run() int {
-	logger := initLogger()
-	logger.Infoln("starting server")
-	logger.Info(fmt.Sprintf("version: %s, build time: %s, build commit: %s", buildVersion, buildDate, buildCommit))
+	logger.Logger.Infoln("starting server")
+	logger.Logger.Info(fmt.Sprintf("version: %s, build time: %s, build commit: %s", buildVersion, buildDate, buildCommit))
 
 	ctx := context.Background()
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
@@ -50,30 +47,30 @@ func run() int {
 
 	cfg, err := config.NewServerConfig()
 	if err != nil {
-		logger.Fatalf("failed to parse a config due to error: %v", err)
+		logger.Logger.Fatalf("failed to parse a config due to error: %v", err)
 	}
 
-	repo, err := repository.New(cfg.DBString, logger)
+	repo, err := repository.New(cfg.DBString)
 	if err != nil {
-		logger.Fatalf("failed to create repository due to error: %v", err)
+		logger.Logger.Fatalf("failed to create repository due to error: %v", err)
 	}
 
 	pingerService := pinger.NewPingerService(repo)
 
-	providerService := provider.NewProviderService(repo, logger)
+	providerService := provider.NewProviderService(repo)
 
-	storageService := storage.NewStorageService(repo, logger)
+	storageService := storage.NewStorageService(repo)
 
 	mux := chi.NewRouter()
-	controller := controllers.NewController(mux, storageService, providerService, pingerService, logger, cfg.HashKey)
+	controller := controllers.NewController(mux, storageService, providerService, pingerService, cfg.HashKey)
 
 	server := httpserver.NewHTTPServer(controller, httpserver.WithAddr(cfg.Address))
-	logger.Infof("server listening on: %s", cfg.Address)
+	logger.Logger.Infof("server listening on: %s", cfg.Address)
 
 	services := errgroup.Group{}
 
 	if cfg.DBString == "" {
-		failoverService := failover.NewService(repo, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore, logger)
+		failoverService := failover.NewService(repo, cfg.FileStoragePath, cfg.StoreInterval, cfg.Restore)
 		services.Go(func() error {
 			failoverService.Run(ctx)
 			return nil
@@ -82,30 +79,22 @@ func run() int {
 
 	select {
 	case s := <-server.Notify():
-		logger.Infof("server error: %v", s)
+		logger.Logger.Infof("server error: %v", s)
 		return 1
 	case <-ctx.Done():
 		err = services.Wait()
 		if err != nil && !errors.Is(err, context.Canceled) {
-			logger.Errorf("failed to gracefully shutdown services: %v", err)
+			logger.Logger.Errorf("failed to gracefully shutdown services: %v", err)
 			return 1
 		}
-		logger.Infof("server terminated")
+		logger.Logger.Infof("server terminated")
 	}
 
 	err = server.Shutdown()
 	if err != nil {
-		logger.Errorf("failed to gracefully shutdown server: %v", err)
+		logger.Logger.Errorf("failed to gracefully shutdown server: %v", err)
 		return 1
 	}
 
 	return 0
-}
-
-func initLogger() *zap.SugaredLogger {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return logger.Sugar()
 }

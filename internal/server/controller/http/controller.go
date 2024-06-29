@@ -6,13 +6,11 @@ import (
 
 	"github.com/arxon31/metrics-collector/internal/server/controller/http/middlewares"
 
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
-
 	"github.com/arxon31/metrics-collector/internal/entity"
 	v1 "github.com/arxon31/metrics-collector/internal/server/controller/http/v1"
 	v2 "github.com/arxon31/metrics-collector/internal/server/controller/http/v2"
 	v3 "github.com/arxon31/metrics-collector/internal/server/controller/http/v3"
+	"github.com/go-chi/chi/v5"
 )
 
 type storageService interface {
@@ -31,10 +29,10 @@ type pingerService interface {
 	PingDB() error
 }
 
-func NewController(handler *chi.Mux, storage storageService, provider providerService, pinger pingerService, logger *zap.SugaredLogger, hashKey string) http.Handler {
+func NewController(handler *chi.Mux, storage storageService, provider providerService, pinger pingerService, hashKey string) http.Handler {
 	hashingMw := middlewares.NewHashingMiddleware(hashKey)
 	compressingMw := middlewares.NewCompressingMiddleware()
-	loggingMw := middlewares.NewLoggingMiddleware(logger)
+	loggingMw := middlewares.NewLoggingMiddleware()
 
 	handler.Use(hashingMw.WithHash, compressingMw.WithCompress, loggingMw.WithLog)
 

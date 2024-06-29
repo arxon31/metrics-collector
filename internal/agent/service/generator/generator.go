@@ -6,10 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 	"net/http"
 	"strconv"
-
-	"go.uber.org/zap"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
 )
@@ -40,16 +39,14 @@ type requestGenerator struct {
 	repo       repo
 	hasher     hasher
 	compressor compressor
-	logger     *zap.SugaredLogger
 }
 
-func New(address string, repo repo, hasher hasher, compressor compressor, logger *zap.SugaredLogger) *requestGenerator {
+func New(address string, repo repo, hasher hasher, compressor compressor) *requestGenerator {
 	g := &requestGenerator{
 		address:    address,
 		repo:       repo,
 		hasher:     hasher,
 		compressor: compressor,
-		logger:     logger,
 	}
 
 	return g
@@ -69,7 +66,7 @@ func (g *requestGenerator) Generate(ctx context.Context) <-chan *http.Request {
 func (g *requestGenerator) makeGaugeURLRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
@@ -79,7 +76,7 @@ func (g *requestGenerator) makeGaugeURLRequest(ctx context.Context, requests cha
 			url := g.makeURL(metric.MetricType, metric.Name, val)
 			req, err := http.NewRequest(http.MethodPost, url, nil)
 			if err != nil {
-				g.logger.Error(err)
+				logger.Logger.Error(err)
 				continue
 			}
 			requests <- req
@@ -91,7 +88,7 @@ func (g *requestGenerator) makeGaugeURLRequest(ctx context.Context, requests cha
 func (g *requestGenerator) makeCounterURLRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
@@ -101,7 +98,7 @@ func (g *requestGenerator) makeCounterURLRequest(ctx context.Context, requests c
 			url := g.makeURL(metric.MetricType, metric.Name, val)
 			req, err := http.NewRequest(http.MethodPost, url, nil)
 			if err != nil {
-				g.logger.Error(err)
+				logger.Logger.Error(err)
 				continue
 			}
 			requests <- req
@@ -112,7 +109,7 @@ func (g *requestGenerator) makeCounterURLRequest(ctx context.Context, requests c
 func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
@@ -121,18 +118,18 @@ func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context, req
 	for _, metric := range metrics {
 		metricBytes, err := json.Marshal(metric)
 		if err != nil {
-			g.logger.Error(err)
+			logger.Logger.Error(err)
 			continue
 		}
 		compressedMetric, err := g.compressor.Compress(metricBytes)
 		if err != nil {
-			g.logger.Error(err)
+			logger.Logger.Error(err)
 			continue
 		}
 
 		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(compressedMetric))
 		if err != nil {
-			g.logger.Error(err)
+			logger.Logger.Error(err)
 			continue
 		}
 		req.Header.Set("Content-Encoding", "gzip")
@@ -142,7 +139,7 @@ func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context, req
 		if metric.MetricType == entity.CounterType {
 			err := g.repo.StoreCounter(ctx, metric.Name, -*metric.Counter)
 			if err != nil {
-				g.logger.Error(err)
+				logger.Logger.Error(err)
 			}
 		}
 
@@ -152,26 +149,26 @@ func (g *requestGenerator) makeCompressedMetricsRequest(ctx context.Context, req
 func (g *requestGenerator) makeGZIPMetricsRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
 	metricsBatchJSON, err := json.Marshal(metrics)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
 	metricsBatchCompressed, err := g.compressor.Compress(metricsBatchJSON)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
 	url := g.makeURL2(batchURL)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(metricsBatchCompressed))
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 	req.Header.Set("Content-Encoding", "gzip")
@@ -190,26 +187,26 @@ func (g *requestGenerator) makeGZIPMetricsRequest(ctx context.Context, requests 
 func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context, requests chan *http.Request) {
 	metrics, err := g.repo.Metrics(ctx)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
 	metricsBatchJSON, err := json.Marshal(metrics)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
 	metricsBatchCompressed, err := g.compressor.Compress(metricsBatchJSON)
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 
 	url := g.makeURL2(batchURL)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(metricsBatchCompressed))
 	if err != nil {
-		g.logger.Error(err)
+		logger.Logger.Error(err)
 		return
 	}
 	req.Header.Set("Content-Encoding", "gzip")

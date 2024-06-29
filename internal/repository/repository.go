@@ -4,8 +4,6 @@ package repository
 import (
 	"context"
 
-	"go.uber.org/zap"
-
 	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-collector/internal/repository/memory"
 	"github.com/arxon31/metrics-collector/internal/repository/postgres"
@@ -29,10 +27,10 @@ type Repository interface {
 	Ping() error
 }
 
-func New(url string, logger *zap.SugaredLogger) (Repository, error) {
+func New(url string) (Repository, error) {
 	if url == "" {
 		return memory.NewMapStorage(), nil
 	} else {
-		return postgres.NewPostgres(url, logger)
+		return postgres.NewPostgres(url)
 	}
 }

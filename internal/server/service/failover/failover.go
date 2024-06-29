@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
-
-	"go.uber.org/zap"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
 )
@@ -27,16 +26,14 @@ type service struct {
 	path         string
 	dumpInterval time.Duration
 	isRestore    bool
-	logger       *zap.SugaredLogger
 }
 
-func NewService(repo repo, path string, dumpInterval time.Duration, isRestore bool, logger *zap.SugaredLogger) *service {
+func NewService(repo repo, path string, dumpInterval time.Duration, isRestore bool) *service {
 	return &service{
 		repo:         repo,
 		path:         path,
 		dumpInterval: dumpInterval,
 		isRestore:    isRestore,
-		logger:       logger,
 	}
 }
 
@@ -44,9 +41,9 @@ func NewService(repo repo, path string, dumpInterval time.Duration, isRestore bo
 func (s *service) Run(ctx context.Context) {
 	if s.isRestore {
 		if err := s.restore(ctx); err != nil {
-			s.logger.Errorln("can not restore data:", err)
+			logger.Logger.Errorln("can not restore data:", err)
 		} else {
-			s.logger.Infoln("restored data from:", s.path)
+			logger.Logger.Infoln("restored data from:", s.path)
 		}
 	}
 
@@ -57,14 +54,14 @@ func (s *service) Run(ctx context.Context) {
 	if s.dumpInterval > 0 {
 		err := s.dumpByInterval(ctx)
 		if err != nil {
-			s.logger.Errorln("can not dump data by interval:", err)
+			logger.Logger.Errorln("can not dump data by interval:", err)
 			return
 		}
 
 	} else {
 		err := s.dumpSynchronously(ctx)
 		if err != nil {
-			s.logger.Errorln("can not dump data synchronously:", err)
+			logger.Logger.Errorln("can not dump data synchronously:", err)
 			return
 		}
 	}
@@ -73,44 +70,44 @@ func (s *service) Run(ctx context.Context) {
 
 func (s *service) dumpByInterval(ctx context.Context) error {
 	ticker := time.NewTicker(s.dumpInterval)
-	s.logger.Infof("dumping data by interval %s to %s", s.dumpInterval, s.path)
+	logger.Logger.Infof("dumping data by interval %s to %s", s.dumpInterval, s.path)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			if err := s.dump(); err != nil {
-				s.logger.Errorln("can not dump data:", err)
+				logger.Logger.Errorln("can not dump data:", err)
 				return err
 			}
-			s.logger.Infoln("TICK:dumped data to:", s.path)
+			logger.Logger.Infoln("TICK:dumped data to:", s.path)
 		case <-ctx.Done():
 			err := s.dump()
 			if err != nil {
-				s.logger.Errorln("can not dump data after shutdown:", err)
+				logger.Logger.Errorln("can not dump data after shutdown:", err)
 				return err
 			}
-			s.logger.Infoln("dumped data after shutdown to:", s.path)
+			logger.Logger.Infoln("dumped data after shutdown to:", s.path)
 			return nil
 		}
 	}
 }
 
 func (s *service) dumpSynchronously(ctx context.Context) error {
-	s.logger.Infof("dumping data synchronously to %s", s.path)
+	logger.Logger.Infof("dumping data synchronously to %s", s.path)
 	for {
 		select {
 		case <-ctx.Done():
 			err := s.dump()
 			if err != nil {
-				s.logger.Errorln("can not dump data after shutdown:", err)
+				logger.Logger.Errorln("can not dump data after shutdown:", err)
 				return err
 			}
-			s.logger.Infoln("dumped data after shutdown to:", s.path)
+			logger.Logger.Infoln("dumped data after shutdown to:", s.path)
 			return nil
 		default:
 			err := s.dump()
 			if err != nil {
-				s.logger.Errorln("can not dump data:", err)
+				logger.Logger.Errorln("can not dump data:", err)
 				return err
 			}
 		}

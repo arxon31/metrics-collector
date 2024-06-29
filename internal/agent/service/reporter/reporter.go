@@ -3,6 +3,7 @@ package reporter
 
 import (
 	"context"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 	"net/http"
 	"time"
 
@@ -16,17 +17,15 @@ type reporter interface {
 }
 
 type metricReporter struct {
-	logger         *zap.SugaredLogger
 	rateLimit      int
 	reportInterval time.Duration
 	reporter       reporter
 }
 
 // NewReporter creates new reporter
-func NewReporter(logger *zap.SugaredLogger, rateLimit int, reporter reporter) *metricReporter {
+func NewReporter(rateLimit int, reporter reporter) *metricReporter {
 
 	rep := &metricReporter{
-		logger:    logger,
 		reporter:  reporter,
 		rateLimit: rateLimit,
 	}
@@ -59,9 +58,9 @@ func (r *metricReporter) runWorker(reqChan <-chan *http.Request) error {
 			}
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
-				r.logger.Error("unexpected status code", zap.Int("status_code", resp.StatusCode))
+				logger.Logger.Error("unexpected status code", zap.Int("status_code", resp.StatusCode))
 			}
-			r.logger.Info("request processed")
+			logger.Logger.Info("request processed")
 			return nil
 		}
 	}

@@ -2,8 +2,7 @@ package provider
 
 import (
 	"context"
-
-	"go.uber.org/zap"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
 )
@@ -16,14 +15,12 @@ type provider interface {
 
 type providerService struct {
 	provider provider
-	logger   *zap.SugaredLogger
 }
 
 // NewProviderService initializes a new provider service.
-func NewProviderService(provider provider, logger *zap.SugaredLogger) *providerService {
+func NewProviderService(provider provider) *providerService {
 	return &providerService{
 		provider: provider,
-		logger:   logger,
 	}
 }
 
@@ -57,7 +54,7 @@ func (s *providerService) GetMetrics(ctx context.Context) ([]entity.MetricDTO, e
 	for _, metric := range vals {
 		err = metric.Validate()
 		if err != nil {
-			s.logger.Error(err)
+			logger.Logger.Error(err)
 		}
 		validMetrics = append(validMetrics, metric)
 	}

@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 	"log"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/arxon31/metrics-collector/internal/agent/service/generator"
-
-	"go.uber.org/zap"
 
 	"github.com/arxon31/metrics-collector/internal/agent/config"
 	"github.com/arxon31/metrics-collector/internal/agent/service/compressor"
@@ -35,9 +34,8 @@ func main() {
 }
 
 func run() int {
-	logger := initLogger()
-	logger.Info("starting agent")
-	logger.Info(fmt.Sprintf("version: %s, build time: %s, build commit: %s", buildVersion, buildDate, buildCommit))
+	logger.Logger.Info("starting agent")
+	logger.Logger.Info(fmt.Sprintf("version: %s, build time: %s, build commit: %s", buildVersion, buildDate, buildCommit))
 
 	ctx := context.Background()
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
@@ -45,7 +43,7 @@ func run() int {
 
 	cfg, err := config.NewAgentConfig()
 	if err != nil {
-		logger.Error("failed to parse a config due to error: %v", err)
+		logger.Logger.Error("failed to parse a config due to error: %v", err)
 		return 1
 	}
 
@@ -56,11 +54,11 @@ func run() int {
 	hashService := hasher.NewHasherService(cfg.HashKey)
 	compressService := compressor.NewCompressorService()
 
-	pollService := poller.New(logger, repo)
+	pollService := poller.New(repo)
 
-	generateService := generator.New(cfg.Address, repo, hashService, compressService, logger)
+	generateService := generator.New(cfg.Address, repo, hashService, compressService)
 
-	reportService := reporter.NewReporter(logger, cfg.RateLimit, reportClient)
+	reportService := reporter.NewReporter(cfg.RateLimit, reportClient)
 
 	pollTicker := time.NewTicker(cfg.PollInterval)
 	defer pollTicker.Stop()
@@ -80,15 +78,7 @@ WORKLOOP:
 		}
 	}
 
-	logger.Infof("agent stopped")
+	logger.Logger.Info("agent stopped")
 
 	return 0
-}
-
-func initLogger() *zap.SugaredLogger {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return logger.Sugar()
 }
