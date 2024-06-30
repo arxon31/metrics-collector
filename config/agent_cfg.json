@@ -1,0 +1,7 @@
+
+{
+  "address": "localhost:8080",
+  "crypto_key": "/path/to/key.pem",
+  "hash_key": "my_hash_key",
+  "rate_limit": 100
+}

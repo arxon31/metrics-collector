@@ -1,13 +1,15 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/arxon31/metrics-collector/pkg/logger"
+	"github.com/caarlos0/env/v10"
+	"io"
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/caarlos0/env/v10"
 )
 
 var (
@@ -17,7 +19,8 @@ var (
 	restore         = flag.Bool("r", true, "restore from file-db")
 	dbstring        = flag.String("d", "", "database connection string")
 	hashKey         = flag.String("k", "", "key for hash counting")
-	cryptoKey       = flag.String("crypto-key", "", "key to decrypt all sending data")
+	cryptoKeyPath   = flag.String("crypto-key", "", "key to decrypt all sending data")
+	configFilePath  = flag.String("c", "./config/server_cfg.json", "config file path")
 )
 
 const (
@@ -26,24 +29,44 @@ const (
 )
 
 type Config struct {
-	Address         string `env:"ADDRESS"`
+	Address         string `env:"ADDRESS" ,json:"address"`
 	StoreInterval   time.Duration
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH" ,json:"store_file"`
 	Restore         bool   `env:"RESTORE"`
-	DBString        string `env:"DATABASE_DSN"`
-	HashKey         string `env:"KEY"`
-	CryptoKey       string `env:"CRYPTO_KEY"`
+	DBString        string `env:"DATABASE_DSN" ,json:"database_dsn"`
+	HashKey         string `env:"KEY" ,json:"hash_key"`
+	CryptoKey       string `env:"CRYPTO_KEY" ,json:"crypto_key"`
 }
 
 // NewServerConfig creates new server config
 func NewServerConfig() (*Config, error) {
 	var config Config
 
+	flag.Parse()
+
+	if *configFilePath != "" {
+		logger.Logger.Info("config file path: ", *configFilePath)
+
+		file, err := os.Open(*configFilePath)
+		if err != nil {
+			logger.Logger.Error(err)
+		}
+		defer file.Close()
+
+		configBytes, err := io.ReadAll(file)
+		if err != nil {
+			logger.Logger.Error(err)
+		}
+
+		err = json.Unmarshal(configBytes, &config)
+		if err != nil {
+			logger.Logger.Error(err)
+		}
+	}
+
 	if err := env.Parse(&config); err != nil {
 		return &config, err
 	}
-
-	flag.Parse()
 
 	if config.Address == "" {
 		config.Address = *address
@@ -62,7 +85,7 @@ func NewServerConfig() (*Config, error) {
 	}
 
 	if config.CryptoKey == "" {
-		config.CryptoKey = *cryptoKey
+		config.CryptoKey = *cryptoKeyPath
 	}
 
 	config.Restore = *restore
