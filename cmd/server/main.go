@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/encrypting"
 	"log"
 	"os/signal"
 	"syscall"
@@ -62,8 +64,26 @@ func run() int {
 
 	storageService := storage.NewStorageService(repo)
 
+	cryptoService := encrypting.NewService(cfg.CryptoKey)
+
+	var privateKey *rsa.PrivateKey
+
+	privateKey, err = cryptoService.GetPrivateKey()
+	if err != nil {
+		logger.Logger.Error(err)
+		err = cryptoService.GenerateIfNotExist()
+		if err != nil {
+			logger.Logger.Fatal(err)
+		}
+
+		privateKey, err = cryptoService.GetPrivateKey()
+		if err != nil {
+			logger.Logger.Fatal(err)
+		}
+	}
+
 	mux := chi.NewRouter()
-	controller := controllers.NewController(mux, storageService, providerService, pingerService, cfg.HashKey)
+	controller := controllers.NewController(mux, storageService, providerService, pingerService, cfg.HashKey, privateKey)
 
 	server := httpserver.NewHTTPServer(controller, httpserver.WithAddr(cfg.Address))
 	logger.Logger.Infof("server listening on: %s", cfg.Address)

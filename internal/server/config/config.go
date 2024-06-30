@@ -17,6 +17,7 @@ var (
 	restore         = flag.Bool("r", true, "restore from file-db")
 	dbstring        = flag.String("d", "", "database connection string")
 	hashKey         = flag.String("k", "", "key for hash counting")
+	cryptoKey       = flag.String("crypto-key", "", "key to decrypt all sending data")
 )
 
 const (
@@ -31,6 +32,7 @@ type Config struct {
 	Restore         bool   `env:"RESTORE"`
 	DBString        string `env:"DATABASE_DSN"`
 	HashKey         string `env:"KEY"`
+	CryptoKey       string `env:"CRYPTO_KEY"`
 }
 
 // NewServerConfig creates new server config
@@ -50,11 +52,17 @@ func NewServerConfig() (*Config, error) {
 	if config.FileStoragePath == "" {
 		config.FileStoragePath = *fileStoragePath
 	}
+
 	if config.DBString == "" {
 		config.DBString = *dbstring
 	}
+
 	if config.HashKey == "" {
 		config.HashKey = *hashKey
+	}
+
+	if config.CryptoKey == "" {
+		config.CryptoKey = *cryptoKey
 	}
 
 	config.Restore = *restore

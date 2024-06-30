@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/arxon31/metrics-collector/internal/agent/service/encryptor"
+	"github.com/arxon31/metrics-collector/internal/encrypting"
 	"log"
 	"os/signal"
 	"syscall"
@@ -53,11 +55,22 @@ func run() int {
 	reportClient := httpclient.NewClient()
 
 	hashService := hasher.NewHasherService(cfg.HashKey)
+
 	compressService := compressor.NewCompressorService()
+
+	cryptoService := encrypting.NewService(cfg.CryptoKey)
+
+	publicKey, err := cryptoService.GetPublicKey()
+	if err != nil {
+		logger.Logger.Error("failed to get public key due to error: %v", err)
+		return 1
+	}
+
+	encryptorService := encryptor.NewEncryptorService(publicKey)
 
 	pollService := poller.New(repo)
 
-	generateService := generator.New(cfg.Address, repo, hashService, compressService)
+	generateService := generator.New(cfg.Address, repo, hashService, compressService, encryptorService)
 
 	reportService := reporter.NewReporter(cfg.RateLimit, reportClient)
 

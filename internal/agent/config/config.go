@@ -16,6 +16,7 @@ var (
 	reportInterval = flag.Int("r", 10, "agent report interval")
 	hashKey        = flag.String("k", "", "key to hash all sending data")
 	rateLimit      = flag.Int("l", 100, "agent rate limit")
+	cryptoKey      = flag.String("crypto-key", "", "key to encrypt all sending data")
 )
 
 const (
@@ -29,6 +30,7 @@ type Config struct {
 	ReportInterval time.Duration
 	HashKey        string `env:"KEY"`
 	RateLimit      int    `env:"RATE_LIMIT"`
+	CryptoKey      string `env:"CRYPTO_KEY"`
 }
 
 // NewAgentConfig creates new agent config
@@ -48,6 +50,10 @@ func NewAgentConfig() (*Config, error) {
 	}
 	if config.RateLimit == 0 {
 		config.RateLimit = *rateLimit
+	}
+
+	if config.CryptoKey == "" {
+		config.CryptoKey = *cryptoKey
 	}
 
 	config.PollInterval = time.Duration(*pollInterval) * time.Second
