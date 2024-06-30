@@ -102,12 +102,10 @@ func run() int {
 	select {
 	case s := <-server.Notify():
 		logger.Logger.Infof("server error: %v", s)
-		return 1
 	case <-ctx.Done():
 		err = services.Wait()
 		if err != nil && !errors.Is(err, context.Canceled) {
 			logger.Logger.Errorf("failed to gracefully shutdown services: %v", err)
-			return 1
 		}
 		logger.Logger.Infof("server terminated")
 	}
@@ -115,6 +113,12 @@ func run() int {
 	err = server.Shutdown()
 	if err != nil {
 		logger.Logger.Errorf("failed to gracefully shutdown server: %v", err)
+		return 1
+	}
+
+	err = services.Wait()
+	if err != nil && !errors.Is(err, context.Canceled) {
+		logger.Logger.Errorf("failed to gracefully shutdown services: %v", err)
 		return 1
 	}
 
