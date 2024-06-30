@@ -5,9 +5,10 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"github.com/arxon31/metrics-collector/pkg/logger"
 	"io"
 	"net/http"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 )
 
 const hashHeader = "HashSHA256"
