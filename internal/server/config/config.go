@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/arxon31/metrics-collector/pkg/logger"
-	"github.com/caarlos0/env/v10"
 	"io"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/caarlos0/env/v10"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 )
 
 var (

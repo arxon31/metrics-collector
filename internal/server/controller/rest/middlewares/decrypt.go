@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/arxon31/metrics-collector/internal/server/controller/rest/resterrs"
-	"github.com/arxon31/metrics-collector/pkg/logger"
 	"io"
 	"net/http"
+
+	"github.com/arxon31/metrics-collector/internal/server/controller/rest/resterrs"
+	"github.com/arxon31/metrics-collector/pkg/logger"
 )
 
 type decryptingMiddleware struct {

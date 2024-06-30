@@ -5,10 +5,11 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/encrypting"
 	"log"
 	"os/signal"
 	"syscall"
+
+	"github.com/arxon31/metrics-collector/internal/encrypting"
 
 	"github.com/arxon31/metrics-collector/pkg/logger"
 
