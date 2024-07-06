@@ -23,6 +23,7 @@ var (
 	hashKey         = flag.String("k", "", "key for hash counting")
 	cryptoKeyPath   = flag.String("crypto-key", "", "key to decrypt all sending data")
 	configFilePath  = flag.String("c", "", "config file path")
+	trustedSubnet   = flag.String("t", "", "trusted agent subnet")
 )
 
 const (
@@ -38,6 +39,7 @@ type Config struct {
 	DBString        string `env:"DATABASE_DSN" ,json:"database_dsn"`
 	HashKey         string `env:"KEY" ,json:"hash_key"`
 	CryptoKey       string `env:"CRYPTO_KEY" ,json:"crypto_key"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET" ,json:"trusted_subnet"`
 }
 
 // NewServerConfig creates new server config
@@ -75,6 +77,10 @@ func NewServerConfig() (*Config, error) {
 
 	if config.CryptoKey == "" {
 		config.CryptoKey = *cryptoKeyPath
+	}
+
+	if config.TrustedSubnet == "" {
+		config.TrustedSubnet = *trustedSubnet
 	}
 
 	config.Restore = *restore
