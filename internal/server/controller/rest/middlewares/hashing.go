@@ -59,7 +59,7 @@ func (h *hashingMiddleware) WithHash(next http.Handler) http.Handler {
 		signFromReq := r.Header.Get(hashHeader)
 		if sign != signFromReq {
 			logger.Logger.Error("signs is not equal")
-			http.Error(w, "signs is not equal", http.StatusBadRequest)
+			http.Error(w, "signs is not equal", http.StatusForbidden)
 			return
 		}
 

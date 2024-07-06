@@ -47,22 +47,9 @@ func NewServerConfig() (*Config, error) {
 	flag.Parse()
 
 	if *configFilePath != "" {
-		logger.Logger.Info("config file path: ", *configFilePath)
-
-		file, err := os.Open(*configFilePath)
+		err := configFromFile(&config)
 		if err != nil {
-			logger.Logger.Error(err)
-		}
-		defer file.Close()
-
-		configBytes, err := io.ReadAll(file)
-		if err != nil {
-			logger.Logger.Error(err)
-		}
-
-		err = json.Unmarshal(configBytes, &config)
-		if err != nil {
-			logger.Logger.Error(err)
+			logger.Logger.Error(fmt.Sprintf("get config from file: %s", err))
 		}
 	}
 
@@ -111,4 +98,26 @@ func NewServerConfig() (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+func configFromFile(cfg *Config) error {
+	logger.Logger.Info("config file path: ", *configFilePath)
+
+	file, err := os.Open(*configFilePath)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer file.Close()
+
+	configBytes, err := io.ReadAll(file)
+	if err != nil {
+		fmt.Errorf("read file: %w", err)
+	}
+
+	err = json.Unmarshal(configBytes, &cfg)
+	if err != nil {
+		fmt.Errorf("unmarshal file: %w", err)
+	}
+
+	return nil
 }
