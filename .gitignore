@@ -29,4 +29,6 @@ vendor/
 
 # Secrets
 .keys
+private.pem
+public.pem
 

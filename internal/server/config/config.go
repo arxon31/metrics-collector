@@ -22,7 +22,7 @@ var (
 	dbstring        = flag.String("d", "", "database connection string")
 	hashKey         = flag.String("k", "", "key for hash counting")
 	cryptoKeyPath   = flag.String("crypto-key", "", "key to decrypt all sending data")
-	configFilePath  = flag.String("c", "./config/server_cfg.json", "config file path")
+	configFilePath  = flag.String("c", "", "config file path")
 )
 
 const (

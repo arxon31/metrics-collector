@@ -21,7 +21,7 @@ var (
 	hashKey        = flag.String("k", "", "key to hash all sending data")
 	rateLimit      = flag.Int("l", 100, "agent rate limit")
 	cryptoKeyPath  = flag.String("crypto-key", "", "key to encrypt all sending data")
-	configFilePath = flag.String("c", "./config/agent_cfg.json", "config file path")
+	configFilePath = flag.String("c", "", "config file path")
 )
 
 const (
