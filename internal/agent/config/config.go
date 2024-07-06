@@ -103,12 +103,12 @@ func configFromFile(cfg *Config) error {
 
 	configBytes, err := io.ReadAll(file)
 	if err != nil {
-		fmt.Errorf("read file: %w", err)
+		return fmt.Errorf("read file: %w", err)
 	}
 
 	err = json.Unmarshal(configBytes, &cfg)
 	if err != nil {
-		fmt.Errorf("unmarshal file: %w", err)
+		return fmt.Errorf("unmarshal file: %w", err)
 	}
 
 	return nil
