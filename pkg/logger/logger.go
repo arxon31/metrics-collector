@@ -1,6 +1,8 @@
 package logger
 
-import "go.uber.org/zap"
+import (
+	"go.uber.org/zap"
+)
 
 var Logger *zap.SugaredLogger
 
@@ -9,9 +11,12 @@ func init() {
 }
 
 func initLogger() *zap.SugaredLogger {
-	logger, err := zap.NewDevelopment()
+	cfg := zap.NewDevelopmentConfig()
+	cfg.DisableStacktrace = true
+	logger, err := cfg.Build()
 	if err != nil {
 		panic(err)
 	}
+
 	return logger.Sugar()
 }

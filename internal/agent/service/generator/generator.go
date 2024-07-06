@@ -34,20 +34,26 @@ type compressor interface {
 	Compress([]byte) ([]byte, error)
 }
 
+type encryptor interface {
+	Encrypt([]byte) ([]byte, error)
+}
+
 type requestGenerator struct {
 	address    string
 	rateLimit  int
 	repo       repo
 	hasher     hasher
 	compressor compressor
+	encryptor  encryptor
 }
 
-func New(address string, repo repo, hasher hasher, compressor compressor) *requestGenerator {
+func New(address string, repo repo, hasher hasher, compressor compressor, encryptor encryptor) *requestGenerator {
 	g := &requestGenerator{
 		address:    address,
 		repo:       repo,
 		hasher:     hasher,
 		compressor: compressor,
+		encryptor:  encryptor,
 	}
 
 	return g
@@ -59,7 +65,7 @@ func (g *requestGenerator) Generate(ctx context.Context) <-chan *http.Request {
 	requests := make(chan *http.Request)
 
 	go g.makeBatchMetricsRequest(ctx, requests)
-	go g.makeCompressedMetricsRequest(ctx, requests)
+	//go g.makeCompressedMetricsRequest(ctx, requests)
 
 	return requests
 }

@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 )
 
 var compressibleTypes = map[string]bool{
@@ -40,12 +42,13 @@ func (c *compressingMiddleware) WithCompress(next http.Handler) http.Handler {
 		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 			gzipReader, err := gzip.NewReader(r.Body)
 			if err != nil {
+				logger.Logger.Error(err)
 				http.Error(w, fmt.Sprintf("can not create gzip reader: %s", err), http.StatusInternalServerError)
 				return
 			}
 			defer gzipReader.Close()
 
-			r.Body = gzipReader
+			r.Body = io.NopCloser(gzipReader)
 
 		}
 

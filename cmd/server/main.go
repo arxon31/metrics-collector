@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"log"
 	"os/signal"
 	"syscall"
+
+	"github.com/arxon31/metrics-collector/internal/encrypting"
 
 	"github.com/arxon31/metrics-collector/pkg/logger"
 
@@ -62,8 +65,26 @@ func run() int {
 
 	storageService := storage.NewStorageService(repo)
 
+	cryptoService := encrypting.NewService(cfg.CryptoKey)
+
+	var privateKey *rsa.PrivateKey
+
+	privateKey, err = cryptoService.GetPrivateKey()
+	if err != nil {
+		logger.Logger.Error(err)
+		err = cryptoService.GenerateIfNotExist()
+		if err != nil {
+			logger.Logger.Fatal(err)
+		}
+
+		privateKey, err = cryptoService.GetPrivateKey()
+		if err != nil {
+			logger.Logger.Fatal(err)
+		}
+	}
+
 	mux := chi.NewRouter()
-	controller := controllers.NewController(mux, storageService, providerService, pingerService, cfg.HashKey)
+	controller := controllers.NewController(mux, storageService, providerService, pingerService, cfg.HashKey, privateKey)
 
 	server := httpserver.NewHTTPServer(controller, httpserver.WithAddr(cfg.Address))
 	logger.Logger.Infof("server listening on: %s", cfg.Address)
@@ -81,12 +102,10 @@ func run() int {
 	select {
 	case s := <-server.Notify():
 		logger.Logger.Infof("server error: %v", s)
-		return 1
 	case <-ctx.Done():
 		err = services.Wait()
 		if err != nil && !errors.Is(err, context.Canceled) {
 			logger.Logger.Errorf("failed to gracefully shutdown services: %v", err)
-			return 1
 		}
 		logger.Logger.Infof("server terminated")
 	}
@@ -94,6 +113,12 @@ func run() int {
 	err = server.Shutdown()
 	if err != nil {
 		logger.Logger.Errorf("failed to gracefully shutdown server: %v", err)
+		return 1
+	}
+
+	err = services.Wait()
+	if err != nil && !errors.Is(err, context.Canceled) {
+		logger.Logger.Errorf("failed to gracefully shutdown services: %v", err)
 		return 1
 	}
 

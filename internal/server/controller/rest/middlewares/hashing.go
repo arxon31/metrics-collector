@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 )
 
 const hashHeader = "HashSHA256"
@@ -36,24 +38,28 @@ func (h *hashingMiddleware) WithHash(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(hashHeader) == "" {
+			logger.Logger.Debug("body after no hashing: ", r.Body)
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		buf, err := io.ReadAll(r.Body)
 		if err != nil {
+			logger.Logger.Error(err)
 			http.Error(w, "can not read body", http.StatusInternalServerError)
 			return
 		}
-		r.Body = io.NopCloser(bytes.NewBuffer(buf))
+
 		sign, err := countHash(buf, h.key)
 		if err != nil {
+			logger.Logger.Error(err)
 			http.Error(w, "can not count hash for body", http.StatusInternalServerError)
 			return
 		}
 		signFromReq := r.Header.Get(hashHeader)
 		if sign != signFromReq {
-			http.Error(w, "signs is not equal", http.StatusBadRequest)
+			logger.Logger.Error("signs is not equal")
+			http.Error(w, "signs is not equal", http.StatusForbidden)
 			return
 		}
 
@@ -61,6 +67,9 @@ func (h *hashingMiddleware) WithHash(next http.Handler) http.Handler {
 			ResponseWriter: w,
 			key:            h.key,
 		}
+
+		r.Body = io.NopCloser(bytes.NewReader(buf))
+
 		next.ServeHTTP(hw, r)
 	})
 }

@@ -1,11 +1,15 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/arxon31/metrics-collector/pkg/logger"
 
 	"github.com/caarlos0/env/v10"
 )
@@ -16,6 +20,8 @@ var (
 	reportInterval = flag.Int("r", 10, "agent report interval")
 	hashKey        = flag.String("k", "", "key to hash all sending data")
 	rateLimit      = flag.Int("l", 100, "agent rate limit")
+	cryptoKeyPath  = flag.String("crypto-key", "", "key to encrypt all sending data")
+	configFilePath = flag.String("c", "./config/agent_cfg.json", "config file path")
 )
 
 const (
@@ -24,21 +30,30 @@ const (
 )
 
 type Config struct {
-	Address        string `env:"ADDRESS"`
+	Address        string `env:"ADDRESS" ,json:"address"`
 	PollInterval   time.Duration
 	ReportInterval time.Duration
-	HashKey        string `env:"KEY"`
-	RateLimit      int    `env:"RATE_LIMIT"`
+	HashKey        string `env:"KEY" ,json:"hash_key"`
+	RateLimit      int    `env:"RATE_LIMIT" ,json:"rate_limit"`
+	CryptoKey      string `env:"CRYPTO_KEY" ,json:"crypto_key"`
 }
 
 // NewAgentConfig creates new agent config
 func NewAgentConfig() (*Config, error) {
 	var config Config
 
+	flag.Parse()
+
+	if *configFilePath != "" {
+		err := configFromFile(&config)
+		if err != nil {
+			logger.Logger.Info(err)
+		}
+	}
+
 	if err := env.Parse(&config); err != nil {
 		return &config, err
 	}
-	flag.Parse()
 
 	if config.Address == "" {
 		config.Address = *address
@@ -48,6 +63,10 @@ func NewAgentConfig() (*Config, error) {
 	}
 	if config.RateLimit == 0 {
 		config.RateLimit = *rateLimit
+	}
+
+	if config.CryptoKey == "" {
+		config.CryptoKey = *cryptoKeyPath
 	}
 
 	config.PollInterval = time.Duration(*pollInterval) * time.Second
@@ -71,4 +90,26 @@ func NewAgentConfig() (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+func configFromFile(cfg *Config) error {
+	logger.Logger.Info("config file path: ", *configFilePath)
+
+	file, err := os.Open(*configFilePath)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer file.Close()
+
+	configBytes, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("read file: %w", err)
+	}
+
+	err = json.Unmarshal(configBytes, &cfg)
+	if err != nil {
+		return fmt.Errorf("unmarshal file: %w", err)
+	}
+
+	return nil
 }

@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"crypto/rsa"
 	"net/http"
 
 	"github.com/arxon31/metrics-collector/internal/server/controller/rest/middlewares"
@@ -30,12 +31,12 @@ type pingerService interface {
 	PingDB() error
 }
 
-func NewController(handler *chi.Mux, storage storageService, provider providerService, pinger pingerService, hashKey string) http.Handler {
+func NewController(handler *chi.Mux, storage storageService, provider providerService, pinger pingerService, hashKey string, cryptoKey *rsa.PrivateKey) http.Handler {
 	hashingMw := middlewares.NewHashingMiddleware(hashKey)
 	compressingMw := middlewares.NewCompressingMiddleware()
 	loggingMw := middlewares.NewLoggingMiddleware()
 
-	handler.Use(hashingMw.WithHash, compressingMw.WithCompress, loggingMw.WithLog)
+	handler.Use(loggingMw.WithLog, hashingMw.WithHash, compressingMw.WithCompress)
 
 	sprint1 := v1.NewController(storage, provider)
 	sprint1.Register(handler)
