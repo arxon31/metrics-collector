@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -218,6 +219,7 @@ func (g *requestGenerator) makeBatchMetricsRequest(ctx context.Context, requests
 	}
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Real-IP", getIP())
 
 	hashSign, err := g.hasher.Hash(metricsBatchCompressed)
 
@@ -245,4 +247,12 @@ func (g *requestGenerator) makeURL2(endpoint string) string {
 		return ""
 	}
 	return path
+}
+
+func getIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	return addrs[0].String()
 }
