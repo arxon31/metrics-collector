@@ -4,6 +4,8 @@ github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
+github.com/arxon31/metrics-proto v1.0.0 h1:Wg0lnVVDAlJwv91rfVHYUyaZNZnp8sTFJVZHMvTWeVo=
+github.com/arxon31/metrics-proto v1.0.0/go.mod h1:9AG/ReyWxBnu94qfm2kvmhr1AMjcfJ8IAio8uIIVPlo=
 github.com/arxon31/metrics_linter v0.0.1 h1:TVVSPS7aMmE0dS2L/006SlwoiBmESqF+H1EjqNZ3ODg=
 github.com/arxon31/metrics_linter v0.0.1/go.mod h1:BzYI9qHgn8MjMK41uihz7UIK+JxEd/9AKOg3AGW8ppU=
 github.com/caarlos0/env/v10 v10.0.0 h1:yIHUBZGsyqCnpTkbjk8asUlx6RFhhEs+h7TOBdgdzXA=

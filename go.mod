@@ -17,6 +17,8 @@ require (
 	honnef.co/go/tools v0.4.7
 )
 
+require github.com/arxon31/metrics-proto v1.0.0 // indirect
+
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/arxon31/metrics_linter v0.0.1
