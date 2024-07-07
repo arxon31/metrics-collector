@@ -2,8 +2,10 @@ package rpc
 
 import (
 	"context"
-	"github.com/arxon31/metrics-collector/internal/entity"
+
 	"github.com/arxon31/metrics-proto/pkg/protobuf/metrics"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 )
 
 type storageService interface {
@@ -57,6 +59,8 @@ func (s *server) GetMetric(ctx context.Context, mGet *metrics.GetMetricRequest) 
 		}, nil
 
 	}
+
+	return nil, nil
 }
 func (s *server) GetMetrics(ctx context.Context, msGet *metrics.GetMetricsRequest) (*metrics.GetMetricsResponse, error) {
 	ms, err := s.provider.GetMetrics(ctx)
@@ -113,6 +117,8 @@ func (s *server) AddMetric(ctx context.Context, mAdd *metrics.AddMetricRequest) 
 				Value:      &metrics.Metric_Counter{Counter: val},
 			}}, nil
 	}
+
+	return nil, nil
 
 }
 func (s *server) AddMetrics(ctx context.Context, msAdd *metrics.AddMetricsRequest) (*metrics.AddMetricsResponse, error) {

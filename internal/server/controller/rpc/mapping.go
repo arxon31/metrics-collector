@@ -1,8 +1,9 @@
 package rpc
 
 import (
-	"github.com/arxon31/metrics-collector/internal/entity"
 	"github.com/arxon31/metrics-proto/pkg/protobuf/metrics"
+
+	"github.com/arxon31/metrics-collector/internal/entity"
 )
 
 func mapDTOToProto(m *entity.MetricDTO) *metrics.Metric {
