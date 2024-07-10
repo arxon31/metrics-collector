@@ -6,8 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os/signal"
 	"syscall"
+
+	"github.com/arxon31/metrics-proto/pkg/protobuf/metrics"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	"github.com/arxon31/metrics-collector/internal/server/controller/rpc"
 
 	"github.com/arxon31/metrics-collector/internal/encrypting"
 
@@ -89,6 +96,24 @@ func run() int {
 	server := httpserver.NewHTTPServer(controller, httpserver.WithAddr(cfg.Address))
 	logger.Logger.Infof("server listening on: %s", cfg.Address)
 
+	grpcController := rpc.NewGRPCController(storageService, providerService)
+	listen, err := net.Listen("tcp", ":9090")
+	if err != nil {
+		logger.Logger.Fatal(err)
+	}
+
+	s := grpc.NewServer()
+
+	metrics.RegisterMetricsCollectorServer(s, grpcController)
+	reflection.Register(s)
+
+	go func() {
+		err := s.Serve(listen)
+		if err != nil {
+			logger.Logger.Error(err)
+		}
+	}()
+
 	services := errgroup.Group{}
 
 	if cfg.DBString == "" {
@@ -115,6 +140,8 @@ func run() int {
 		logger.Logger.Errorf("failed to gracefully shutdown server: %v", err)
 		return 1
 	}
+
+	s.GracefulStop()
 
 	err = services.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {
