@@ -5,14 +5,16 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
-	"github.com/arxon31/metrics-collector/internal/server/controller/rpc"
-	"github.com/arxon31/metrics-proto/pkg/protobuf/metrics"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
 	"os/signal"
 	"syscall"
+
+	"github.com/arxon31/metrics-proto/pkg/protobuf/metrics"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	"github.com/arxon31/metrics-collector/internal/server/controller/rpc"
 
 	"github.com/arxon31/metrics-collector/internal/encrypting"
 

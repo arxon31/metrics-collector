@@ -3,6 +3,9 @@ package rpc
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/arxon31/metrics-proto/pkg/protobuf/metrics"
 
 	"github.com/arxon31/metrics-collector/internal/entity"
@@ -60,7 +63,7 @@ func (s *server) GetMetric(ctx context.Context, mGet *metrics.GetMetricRequest) 
 
 	}
 
-	return nil, nil
+	return nil, status.Error(codes.InvalidArgument, "unsupported metric type")
 }
 func (s *server) GetMetrics(ctx context.Context, msGet *metrics.GetMetricsRequest) (*metrics.GetMetricsResponse, error) {
 	ms, err := s.provider.GetMetrics(ctx)
@@ -118,7 +121,7 @@ func (s *server) AddMetric(ctx context.Context, mAdd *metrics.AddMetricRequest) 
 			}}, nil
 	}
 
-	return nil, nil
+	return nil, status.Error(codes.InvalidArgument, "unsupported metric type")
 
 }
 func (s *server) AddMetrics(ctx context.Context, msAdd *metrics.AddMetricsRequest) (*metrics.AddMetricsResponse, error) {
